@@ -43,8 +43,8 @@ func expandRGBA(img image.Image) *image.RGBA {
 	var c0 uint32
 	var c1 uint8
 
-	for y := 0; y < rect.Max.Y; y++ {
-		for x := 0; x < rect.Max.X; x++ {
+	for y := 1; y < rect.Max.Y-1; y++ {
+		for x := 1; x < rect.Max.X-1; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
 			if min > uint8(c0) {
 				min = uint8(c0)
@@ -71,43 +71,130 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
-func dy(img image.Image, x, y int) float64 {
-	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
-	if x == 0 || x == xmax-1 || y == 0 || y == ymax-1 {
-		return 1.0
+func sb(img image.Image, w float64) image.Image {
+	rect := img.Bounds()
+	nimg := image.NewRGBA(rect)
+	var sum, gx, gy float64
+	for j := 0; j < rect.Max.Y; j++ {
+		for i := 0; i < rect.Max.X; i++ {
+			gx = sbx(img, i, j, w)
+			gy = sby(img, i, j, w)
+			sum = math.Abs(gx) + math.Abs(gy)
+			if sum > 255 {
+				sum = 255
+			}
+			if sum < 0 {
+				sum = 0
+			}
+			nimg.Set(i, j, color.Gray{uint8(sum)})
+		}
 	}
-
-	r0, g0, b0, _ := img.At(x, y-1).RGBA() // returns uint32
-	r2, g2, b2, _ := img.At(x, y+1).RGBA() // returns uint32
-
-	l0 := luminosity(uint8(r0), uint8(g0), uint8(b0))
-	l2 := luminosity(uint8(r2), uint8(g2), uint8(b2))
-
-	l1 := l2 - l0
-	if l1 == 0 {
-		return 1.0
-	} else {
-		return l1
-	}
+	return nimg
 }
 
-func dx(img image.Image, x, y int) float64 {
-	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
-	if x == 0 || x == xmax-1 || y == 0 || y == ymax-1 {
-		return 1.0
-	}
-	r0, g0, b0, _ := img.At(x-1, y).RGBA()
-	r2, g2, b2, _ := img.At(x+1, y).RGBA()
+func sby(img image.Image, x, y int, w float64) float64 {
+	var acc float64
+	for j := y - 1; j < y+2; j++ {
+		for i := x - 1; i < x+2; i++ {
+			rgba := img.At(i, j)
+			if rgba != nil {
+				c, _, _, _ := rgba.RGBA()
+				switch {
+				case i == x-1 && j != y:
+					acc = acc - float64(c&0xFF)
+				case i == x-1 && j == y:
+					acc = acc - w*float64(c&0xFF)
+				case i == x+1 && j != y:
+					acc = acc + float64(c&0xFF)
+				case i == x+1 && j == y:
+					acc = acc + w*float64(c&0xFF)
+				}
 
-	l0 := luminosity(uint8(r0), uint8(g0), uint8(b0))
-	l2 := luminosity(uint8(r2), uint8(g2), uint8(b2))
-
-	l1 := l2 - l0
-	if l1 == 0 {
-		return 1.0
-	} else {
-		return l1
+			}
+		}
 	}
+	return acc
+}
+
+func sbx(img image.Image, x, y int, w float64) float64 {
+	var acc float64
+	for j := y - 1; j < y+2; j++ {
+		for i := x - 1; i < x+2; i++ {
+			rgba := img.At(i, j)
+			if rgba != nil {
+				c, _, _, _ := rgba.RGBA()
+				switch {
+				case i != x && j == y-1:
+					acc = acc - float64(c&0xFF)
+				case i == x && j == y-1:
+					acc = acc - w*float64(c&0xFF)
+				case i != x && j == y+1:
+					acc = acc + float64(c&0xFF)
+				case i == x && j == y+1:
+					acc = acc + w*float64(c&0xFF)
+				}
+			}
+		}
+	}
+
+	return acc
+}
+
+func pw(img image.Image) image.Image {
+	rect := img.Bounds()
+	nimg := image.NewRGBA(rect)
+	var sum, gx, gy float64
+	for j := 0; j < rect.Max.Y; j++ {
+		for i := 0; i < rect.Max.X; i++ {
+			gx = pwx(img, i, j)
+			gy = pwy(img, i, j)
+			sum = math.Abs(gx*gx) + math.Abs(gy*gy)
+			sum = math.Sqrt(sum)
+			if sum > 255 {
+				sum = 255
+			}
+			nimg.Set(i, j, color.Gray{uint8(sum)})
+		}
+	}
+	return nimg
+}
+
+func pwy(img image.Image, x, y int) float64 {
+	var acc float64
+	for j := y - 1; j < y+2; j++ {
+		for i := x - 1; i < x+2; i++ {
+			rgba := img.At(i, j)
+			if rgba != nil {
+				c, _, _, _ := rgba.RGBA()
+				switch {
+				case i == x-1:
+					acc = acc - float64(c&0xFF)
+				case i == x+1:
+					acc = acc + float64(c&0xFF)
+				}
+			}
+		}
+	}
+	return acc
+}
+
+func pwx(img image.Image, x, y int) float64 {
+	var acc float64
+	for j := y - 1; j < y+2; j++ {
+		for i := x - 1; i < x+2; i++ {
+			rgba := img.At(i, j)
+			if rgba != nil {
+				c, _, _, _ := rgba.RGBA()
+				switch {
+				case j == y-1:
+					acc = acc - float64(c&0xFF)
+				case j == y+1:
+					acc = acc + float64(c&0xFF)
+				}
+			}
+		}
+	}
+	return acc
 }
 
 func gradient_magnitude(dx, dy float64) float64 {
@@ -122,7 +209,7 @@ func gradient_theta(dx, dy float64) float64 {
 	return th
 }
 
-func rowIterate(img image.Image, ave uint32) ([]int, []int) {
+func row_iterate(img image.Image, ave uint32) ([]int, []int) {
 	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
 
 	var maxlist = make([]int, ymax)
@@ -152,7 +239,7 @@ func rowIterate(img image.Image, ave uint32) ([]int, []int) {
 	return maxlist, minlist
 }
 
-func colIterate(img image.Image, ave uint32) ([]int, []int) {
+func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
 
 	var maxlist = make([]int, xmax)
@@ -181,12 +268,6 @@ func colIterate(img image.Image, ave uint32) ([]int, []int) {
 	return maxlist, minlist
 }
 
-type Chunk struct {
-	x, y      int
-	theta     float64
-	magnitude float64
-}
-
 type Point struct {
 	x, y int
 }
@@ -204,32 +285,42 @@ func main() {
 		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
 		os.Exit(1)
 	}
-	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
 
+	//	var ave uint32
 	// settle it black(0x00) and white(0xFF)
-	nimg := expandRGBA(img)
+	img = expandRGBA(img)
 
 	// cut off pixels below the average color
-	nimg, ave := cutoffRGBA(nimg)
+	img, _ = cutoffRGBA(img)
+	//	img, _ = cutoffRGBA(img)
 
-	// iterate lines
-	rowmaxlist, rowminlist := rowIterate(nimg, ave)
-	colmaxlist, colminlist := colIterate(nimg, ave)
+	// sobel algorithm for edging
+	//	img = sb(img,2)
 
-	// put colors to image every column
-	for x := 0; x < xmax; x++ {
-		colmaxy, colminy := colmaxlist[x], colminlist[x]
-		nimg.Set(x, colmaxy, color.RGBA{0x3F, 0xBF, 0x3F, 0xFF})
-		nimg.Set(x, colminy, color.RGBA{0x19, 0x4C, 0x19, 0xFF})
-	}
+	// prewitt algorithm
+	img = pw(img)
 
-	// put colors to image every row
-	for y := 0; y < ymax; y++ {
-		rowmaxx, rowminx := rowmaxlist[y], rowminlist[y]
-		nimg.Set(rowmaxx, y, color.RGBA{0x4B, 0x4B, 0xD1, 0xFF})
-		nimg.Set(rowminx, y, color.RGBA{0x1A, 0x1A, 0x65, 0xFF})
-	}
+	//	img = expandRGBA(img)
 
-	png.Encode(os.Stdout, nimg)
+	/*
+		// iterate lines
+		rowmaxlist, rowminlist := row_iterate(nimg, ave)
+		colmaxlist, colminlist := col_iterate(nimg, ave)
+
+		// put colors to image every column
+		for x := 0; x < xmax; x++ {
+			colmaxy, colminy := colmaxlist[x], colminlist[x]
+			nimg.Set(x, colmaxy, color.RGBA{0x3F, 0xBF, 0x3F, 0xFF})
+			nimg.Set(x, colminy, color.RGBA{0x19, 0x4C, 0x19, 0xFF})
+		}
+
+		// put colors to image every row
+		for y := 0; y < ymax; y++ {
+			rowmaxx, rowminx := rowmaxlist[y], rowminlist[y]
+			nimg.Set(rowmaxx, y, color.RGBA{0x4B, 0x4B, 0xD1, 0xFF})
+			nimg.Set(rowminx, y, color.RGBA{0x1A, 0x1A, 0x65, 0xFF})
+		}
+	*/
+	png.Encode(os.Stdout, img)
 
 }
