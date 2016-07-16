@@ -10,6 +10,32 @@ import (
 	"os"
 )
 
+func binary(img image.Image) *image.RGBA {
+	rect := img.Bounds()
+	nimg := image.NewRGBA(rect)
+	var acc, ave, c0 uint32
+
+	for y := 0; y < rect.Max.Y; y++ {
+		for x := 0; x < rect.Max.X; x++ {
+			c0, _, _, _ = img.At(x, y).RGBA()
+			acc = acc + c0&0xFF
+		}
+	}
+	ave = acc / uint32(rect.Max.X*rect.Max.Y)
+
+	for y := 0; y < rect.Max.Y; y++ {
+		for x := 0; x < rect.Max.X; x++ {
+			c0, _, _, _ = img.At(x, y).RGBA()
+			if c0&0xFF > ave {
+				nimg.Set(x, y, color.Gray{255})
+			} else {
+				nimg.Set(x, y, color.Gray{0})
+			}
+		}
+	}
+	return nimg
+}
+
 func cutoffRGBA(img image.Image) (*image.RGBA, uint32) {
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
@@ -286,19 +312,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	//	var ave uint32
 	// settle it black(0x00) and white(0xFF)
-	img = expandRGBA(img)
+	//	img = expandRGBA(img)
 
 	// cut off pixels below the average color
 	img, _ = cutoffRGBA(img)
-	//	img, _ = cutoffRGBA(img)
+
+	// binary
+	//img = binary(img)
 
 	// sobel algorithm for edging
-	//	img = sb(img,2)
+	img = sb(img, 2)
+
+	// binary
+	img = binary(img)
 
 	// prewitt algorithm
-	img = pw(img)
+	//	img = pw(img)
 
 	//	img = expandRGBA(img)
 
