@@ -14,7 +14,6 @@ func binary(img image.Image) *image.RGBA {
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var acc, ave, c0 uint32
-
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
@@ -105,12 +104,9 @@ func sb(img image.Image, w float64) image.Image {
 		for i := 0; i < rect.Max.X; i++ {
 			gx = sbx(img, i, j, w)
 			gy = sby(img, i, j, w)
-			sum = math.Abs(gx) + math.Abs(gy)
+			sum = math.Sqrt(gx*gx + gy*gy)
 			if sum > 255 {
 				sum = 255
-			}
-			if sum < 0 {
-				sum = 0
 			}
 			nimg.Set(i, j, color.Gray{uint8(sum)})
 		}
@@ -122,9 +118,8 @@ func sby(img image.Image, x, y int, w float64) float64 {
 	var acc float64
 	for j := y - 1; j < y+2; j++ {
 		for i := x - 1; i < x+2; i++ {
-			rgba := img.At(i, j)
-			if rgba != nil {
-				c, _, _, _ := rgba.RGBA()
+			if (image.Point{i, j}.In(img.Bounds())) {
+				c, _, _, _ := img.At(i, j).RGBA()
 				switch {
 				case i == x-1 && j != y:
 					acc = acc - float64(c&0xFF)
@@ -146,9 +141,8 @@ func sbx(img image.Image, x, y int, w float64) float64 {
 	var acc float64
 	for j := y - 1; j < y+2; j++ {
 		for i := x - 1; i < x+2; i++ {
-			rgba := img.At(i, j)
-			if rgba != nil {
-				c, _, _, _ := rgba.RGBA()
+			if (image.Point{i, j}.In(img.Bounds())) {
+				c, _, _, _ := img.At(i, j).RGBA()
 				switch {
 				case i != x && j == y-1:
 					acc = acc - float64(c&0xFF)
@@ -167,60 +161,15 @@ func sbx(img image.Image, x, y int, w float64) float64 {
 }
 
 func pw(img image.Image) image.Image {
-	rect := img.Bounds()
-	nimg := image.NewRGBA(rect)
-	var sum, gx, gy float64
-	for j := 0; j < rect.Max.Y; j++ {
-		for i := 0; i < rect.Max.X; i++ {
-			gx = pwx(img, i, j)
-			gy = pwy(img, i, j)
-			sum = math.Abs(gx*gx) + math.Abs(gy*gy)
-			sum = math.Sqrt(sum)
-			if sum > 255 {
-				sum = 255
-			}
-			nimg.Set(i, j, color.Gray{uint8(sum)})
-		}
-	}
-	return nimg
+	return sb(img, 1)
 }
 
 func pwy(img image.Image, x, y int) float64 {
-	var acc float64
-	for j := y - 1; j < y+2; j++ {
-		for i := x - 1; i < x+2; i++ {
-			rgba := img.At(i, j)
-			if rgba != nil {
-				c, _, _, _ := rgba.RGBA()
-				switch {
-				case i == x-1:
-					acc = acc - float64(c&0xFF)
-				case i == x+1:
-					acc = acc + float64(c&0xFF)
-				}
-			}
-		}
-	}
-	return acc
+	return sby(img, x, y, 1)
 }
 
 func pwx(img image.Image, x, y int) float64 {
-	var acc float64
-	for j := y - 1; j < y+2; j++ {
-		for i := x - 1; i < x+2; i++ {
-			rgba := img.At(i, j)
-			if rgba != nil {
-				c, _, _, _ := rgba.RGBA()
-				switch {
-				case j == y-1:
-					acc = acc - float64(c&0xFF)
-				case j == y+1:
-					acc = acc + float64(c&0xFF)
-				}
-			}
-		}
-	}
-	return acc
+	return sbx(img, x, y, 1)
 }
 
 func gradient_magnitude(dx, dy float64) float64 {
@@ -292,10 +241,6 @@ func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 		maxlist[x], minlist[x] = maxy, miny
 	}
 	return maxlist, minlist
-}
-
-type Point struct {
-	x, y int
 }
 
 func main() {
