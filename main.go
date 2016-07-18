@@ -10,6 +10,56 @@ import (
 	"os"
 )
 
+func g_smoothing(img image.Image) *image.RGBA {
+	rect := img.Bounds()
+	nimg1 := image.NewRGBA(rect)
+	nimg2 := image.NewRGBA(rect)
+	// convolution algorithm
+	var c0, c1, c2, c3, c4, c5, c6 uint32
+
+	for y := 0; y < rect.Max.Y; y++ {
+		for x := 3; x < rect.Max.X-3; x++ {
+			c0, _, _, _ = img.At(x-3, y).RGBA()
+			c1, _, _, _ = img.At(x-2, y).RGBA()
+			c2, _, _, _ = img.At(x-1, y).RGBA()
+			c3, _, _, _ = img.At(x, y).RGBA()
+			c4, _, _, _ = img.At(x+1, y).RGBA()
+			c5, _, _, _ = img.At(x+2, y).RGBA()
+			c6, _, _, _ = img.At(x+3, y).RGBA()
+			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
+			nimg1.Set(x, y, color.Gray{c})
+		}
+	}
+
+	//	conv_matrix2 := make([][]uint32, rect.Max.Y-6)
+	for x := 3; x < rect.Max.X-3; x++ {
+		for y := 3; y < rect.Max.Y-3; y++ {
+			c0, _, _, _ = nimg1.At(x, y-3).RGBA()
+			c1, _, _, _ = nimg1.At(x, y-2).RGBA()
+			c2, _, _, _ = nimg1.At(x, y-1).RGBA()
+			c3, _, _, _ = nimg1.At(x, y).RGBA()
+			c4, _, _, _ = nimg1.At(x, y+1).RGBA()
+			c5, _, _, _ = nimg1.At(x, y+2).RGBA()
+			c6, _, _, _ = nimg1.At(x, y+3).RGBA()
+			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
+			nimg2.Set(x, y, color.Gray{c})
+		}
+	}
+
+	return nimg2
+}
+
+func conv1d(c0, c1, c2, c3, c4, c5, c6 uint32) uint8 {
+	f0 := float64(c0&0xFF) * 0.006
+	f1 := float64(c1&0xFF) * 0.061
+	f2 := float64(c2&0xFF) * 0.242
+	f3 := float64(c3&0xFF) * 0.383
+	f4 := float64(c4&0xFF) * 0.242
+	f5 := float64(c5&0xFF) * 0.061
+	f6 := float64(c6&0xFF) * 0.006
+	return uint8(f0 + f1 + f2 + f3 + f4 + f5 + f6)
+}
+
 func binary(img image.Image) *image.RGBA {
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
@@ -108,6 +158,7 @@ func sb(img image.Image, w float64) image.Image {
 			if sum > 255 {
 				sum = 255
 			}
+			//			fmt.Println("sum ", sum, " x ", i, "  y", j, "  gx:", gx, " gy:", gy)
 			nimg.Set(i, j, color.Gray{uint8(sum)})
 		}
 	}
@@ -257,25 +308,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// settle it black(0x00) and white(0xFF)
-	//	img = expandRGBA(img)
+	// gaussian smoothing function
+	img = g_smoothing(img)
 
 	// cut off pixels below the average color
 	img, _ = cutoffRGBA(img)
 
-	// binary
-	//img = binary(img)
+	// settle it black(0x00) and white(0xFF)
+	img = expandRGBA(img)
 
 	// sobel algorithm for edging
 	img = sb(img, 2)
 
-	// binary
-	img = binary(img)
-
 	// prewitt algorithm
 	//	img = pw(img)
 
-	//	img = expandRGBA(img)
+	// binary conversion
+	img = binary(img)
 
 	/*
 		// iterate lines
@@ -297,5 +346,5 @@ func main() {
 		}
 	*/
 	png.Encode(os.Stdout, img)
-
+	//	_ = img
 }
