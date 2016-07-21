@@ -171,8 +171,7 @@ func sb(img image.Image, w float64) image.Image {
 	var sum, gx, gy float64
 	for j := 0; j < rect.Max.Y; j++ {
 		for i := 0; i < rect.Max.X; i++ {
-			gx = sbx(img, i, j, w)
-			gy = sby(img, i, j, w)
+			gy, gx = sb_helper(img, i, j, w)
 			sum = math.Sqrt(gx*gx + gy*gy)
 			if sum > 255 {
 				sum = 255
@@ -183,61 +182,44 @@ func sb(img image.Image, w float64) image.Image {
 	return nimg
 }
 
-func sby(img image.Image, x, y int, w float64) float64 {
-	var acc float64
+func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
+	var accY, accX float64
 	for j := y - 1; j < y+2; j++ {
 		for i := x - 1; i < x+2; i++ {
 			if (image.Point{i, j}.In(img.Bounds())) {
 				c, _, _, _ := img.At(i, j).RGBA()
 				switch {
 				case i == x-1 && j != y:
-					acc = acc - float64(c&0xFF)
+					accY = accY - float64(c&0xFF)
 				case i == x-1 && j == y:
-					acc = acc - w*float64(c&0xFF)
+					accY = accY - w*float64(c&0xFF)
 				case i == x+1 && j != y:
-					acc = acc + float64(c&0xFF)
+					accY = accY + float64(c&0xFF)
 				case i == x+1 && j == y:
-					acc = acc + w*float64(c&0xFF)
+					accY = accY + w*float64(c&0xFF)
 				}
 			}
-		}
-	}
-	return acc
-}
-
-func sbx(img image.Image, x, y int, w float64) float64 {
-	var acc float64
-	for j := y - 1; j < y+2; j++ {
-		for i := x - 1; i < x+2; i++ {
 			if (image.Point{i, j}.In(img.Bounds())) {
 				c, _, _, _ := img.At(i, j).RGBA()
 				switch {
 				case i != x && j == y-1:
-					acc = acc - float64(c&0xFF)
+					accX = accX - float64(c&0xFF)
 				case i == x && j == y-1:
-					acc = acc - w*float64(c&0xFF)
+					accX = accX - w*float64(c&0xFF)
 				case i != x && j == y+1:
-					acc = acc + float64(c&0xFF)
+					accX = accX + float64(c&0xFF)
 				case i == x && j == y+1:
-					acc = acc + w*float64(c&0xFF)
+					accX = accX + w*float64(c&0xFF)
 				}
 			}
+
 		}
 	}
-
-	return acc
+	return accY, accX
 }
 
 func pw(img image.Image) image.Image {
 	return sb(img, 1)
-}
-
-func pwy(img image.Image, x, y int) float64 {
-	return sby(img, x, y, 1)
-}
-
-func pwx(img image.Image, x, y int) float64 {
-	return sbx(img, x, y, 1)
 }
 
 func gradient_magnitude(dx, dy float64) float64 {
