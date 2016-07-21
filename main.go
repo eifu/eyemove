@@ -11,13 +11,18 @@ import (
 )
 
 func g_smoothing(img image.Image) *image.RGBA {
+
 	rect := img.Bounds()
 	nimg1 := image.NewRGBA(rect)
-	nimg2 := image.NewRGBA(rect)
 	// convolution algorithm
 	var c0, c1, c2, c3, c4, c5, c6 uint32
 
 	for y := 0; y < rect.Max.Y; y++ {
+		for x := 0; x < 3; x++ {
+			c0, _, _, _ = img.At(x, y).RGBA()
+			nimg1.Set(x, y, color.Gray{uint8(c0)})
+		}
+
 		for x := 3; x < rect.Max.X-3; x++ {
 			c0, _, _, _ = img.At(x-3, y).RGBA()
 			c1, _, _, _ = img.At(x-2, y).RGBA()
@@ -29,10 +34,20 @@ func g_smoothing(img image.Image) *image.RGBA {
 			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
 			nimg1.Set(x, y, color.Gray{c})
 		}
-	}
 
-	//	conv_matrix2 := make([][]uint32, rect.Max.Y-6)
-	for x := 3; x < rect.Max.X-3; x++ {
+		for x := rect.Max.X - 3; x < rect.Max.X; x++ {
+			c0, _, _, _ := img.At(x, y).RGBA()
+			nimg1.Set(x, y, color.Gray{uint8(c0)})
+		}
+	}
+	_ = img
+
+	nimg2 := image.NewRGBA(rect)
+	for x := 0; x < rect.Max.X; x++ {
+		for y := 0; y < 3; y++ {
+			c0, _, _, _ := nimg1.At(x, y).RGBA()
+			nimg2.Set(x, y, color.Gray{uint8(c0)})
+		}
 		for y := 3; y < rect.Max.Y-3; y++ {
 			c0, _, _, _ = nimg1.At(x, y-3).RGBA()
 			c1, _, _, _ = nimg1.At(x, y-2).RGBA()
@@ -43,6 +58,10 @@ func g_smoothing(img image.Image) *image.RGBA {
 			c6, _, _, _ = nimg1.At(x, y+3).RGBA()
 			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
 			nimg2.Set(x, y, color.Gray{c})
+		}
+		for y := rect.Max.Y - 3; y < rect.Max.Y; y++ {
+			c0, _, _, _ := nimg1.At(x, y).RGBA()
+			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
 	}
 
@@ -158,7 +177,6 @@ func sb(img image.Image, w float64) image.Image {
 			if sum > 255 {
 				sum = 255
 			}
-			//			fmt.Println("sum ", sum, " x ", i, "  y", j, "  gx:", gx, " gy:", gy)
 			nimg.Set(i, j, color.Gray{uint8(sum)})
 		}
 	}
@@ -181,7 +199,6 @@ func sby(img image.Image, x, y int, w float64) float64 {
 				case i == x+1 && j == y:
 					acc = acc + w*float64(c&0xFF)
 				}
-
 			}
 		}
 	}
@@ -258,7 +275,6 @@ func row_iterate(img image.Image, ave uint32) ([]int, []int) {
 					min, minx = row_array[x-1], x
 				}
 			}
-
 		}
 		maxlist[y], minlist[y] = maxx, minx
 	}
@@ -315,7 +331,7 @@ func main() {
 	img, _ = cutoffRGBA(img)
 
 	// settle it black(0x00) and white(0xFF)
-	img = expandRGBA(img)
+	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
 	img = sb(img, 2)
@@ -346,5 +362,4 @@ func main() {
 		}
 	*/
 	png.Encode(os.Stdout, img)
-	//	_ = img
 }
