@@ -6,12 +6,13 @@ import (
 	"image/color"
 	_ "image/jpeg"
 	"image/png"
+	"log"
 	"math"
 	"os"
 )
 
 func g_smoothing(img image.Image) *image.RGBA {
-
+	log.Print("start gaussian smoothing")
 	rect := img.Bounds()
 	nimg1 := image.NewRGBA(rect)
 	// convolution algorithm
@@ -64,7 +65,6 @@ func g_smoothing(img image.Image) *image.RGBA {
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
 	}
-
 	return nimg2
 }
 
@@ -80,6 +80,7 @@ func conv1d(c0, c1, c2, c3, c4, c5, c6 uint32) uint8 {
 }
 
 func binary(img image.Image) *image.RGBA {
+	log.Print("start settling black or white")
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var acc, ave, c0 uint32
@@ -105,6 +106,7 @@ func binary(img image.Image) *image.RGBA {
 }
 
 func cutoffRGBA(img image.Image) (*image.RGBA, uint32) {
+	log.Print("start cut off below average")
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var acc, ave, c0 uint32
@@ -131,6 +133,7 @@ func cutoffRGBA(img image.Image) (*image.RGBA, uint32) {
 }
 
 func expandRGBA(img image.Image) *image.RGBA {
+	log.Print("start expanding")
 	rect := img.Bounds()
 
 	var min, max uint8 = 0xFF, 0
@@ -166,6 +169,7 @@ func luminosity(r, g, b uint8) float64 {
 }
 
 func sb(img image.Image, w float64) image.Image {
+	log.Print("start sobel algorithm...")
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var sum, gx, gy float64
