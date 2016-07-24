@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"time"
 )
 
 func g_smoothing(img image.Image) *image.RGBA {
@@ -297,6 +298,7 @@ func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 }
 
 func main() {
+	start := time.Now()
 	file, err := os.Open("data/test1.jpg")
 	defer file.Close()
 	if err != nil {
@@ -348,4 +350,5 @@ func main() {
 		}
 	*/
 	png.Encode(os.Stdout, img)
+	log.Printf("Process took %s", time.Since(start))
 }
