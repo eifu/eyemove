@@ -420,19 +420,19 @@ func main() {
 	nimg := g_smoothing(img)
 
 	// cut off pixels below the average color
-	nimg, _ = cutoffRGBA(nimg)
+	//	nimg, _ = cutoffRGBA(nimg)
 
 	// settle it black(0x00) and white(0xFF)
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-	nimg = sb(nimg, 2)
+	//	nimg = sb(nimg, 2)
 
 	// prewitt algorithm
 	//	img = pw(img)
 
 	// binary conversion
-	nimg = binary(nimg)
+	//	nimg = binary(nimg)
 
 	/*
 		// iterate lines
@@ -454,11 +454,11 @@ func main() {
 		}
 	*/
 
-	cnt, r := hough(nimg)
+	//	cnt, r := hough(nimg)
 
-	img = drawCircle(img, cnt, r)
+	//	img = drawCircle(img, cnt, r)
 
-	err = png.Encode(os.Stdout, img)
+	err = png.Encode(os.Stdout, nimg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
 		os.Exit(1)
