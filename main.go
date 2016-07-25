@@ -121,54 +121,85 @@ func g_smoothing(img image.Image) *image.RGBA {
 	rect := img.Bounds()
 	nimg1 := image.NewRGBA(rect)
 	// convolution algorithm
-	var c0, c1, c2, c3, c4, c5, c6 uint32
+	var c0 uint32
+	var c float64
+	var mid []int
+
+	// store floating val to int array from 0 to 255
+	c_arr := make([]float64, 256*4)
+	for i := 0; i < 256; i++ {
+		c_arr[4*i] = float64(i) * 0.006
+		c_arr[4*i+1] = float64(i) * 0.061
+		c_arr[4*i+2] = float64(i) * 0.242
+		c_arr[4*i+3] = float64(i) * 0.383
+	}
 
 	for y := 0; y < rect.Max.Y; y++ {
+
+		// store a column of pixel val to int array
+		mid = make([]int, rect.Max.X)
 		for x := 0; x < 3; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
+			mid[x] = 4 * int(c0&0xFF)
 			nimg1.Set(x, y, color.Gray{uint8(c0)})
 		}
-
 		for x := 3; x < rect.Max.X-3; x++ {
-			c0, _, _, _ = img.At(x-3, y).RGBA()
-			c1, _, _, _ = img.At(x-2, y).RGBA()
-			c2, _, _, _ = img.At(x-1, y).RGBA()
-			c3, _, _, _ = img.At(x, y).RGBA()
-			c4, _, _, _ = img.At(x+1, y).RGBA()
-			c5, _, _, _ = img.At(x+2, y).RGBA()
-			c6, _, _, _ = img.At(x+3, y).RGBA()
-			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
-			nimg1.Set(x, y, color.Gray{c})
+			c0, _, _, _ = img.At(x, y).RGBA()
+			mid[x] = 4 * int(c0&0xFF)
 		}
-
 		for x := rect.Max.X - 3; x < rect.Max.X; x++ {
-			c0, _, _, _ := img.At(x, y).RGBA()
+			c0, _, _, _ = img.At(x, y).RGBA()
+			mid[x] = 4 * int(c0&0xFF)
 			nimg1.Set(x, y, color.Gray{uint8(c0)})
 		}
+
+		// invoke corresponding floating val to pix array
+		for x := 3; x < rect.Max.X-3; x++ {
+			c = c_arr[mid[x-3]]
+			c += c_arr[mid[x-2]+1]
+			c += c_arr[mid[x-1]+2]
+			c += c_arr[mid[x]+3]
+			c += c_arr[mid[x+1]+2]
+			c += c_arr[mid[x+2]+1]
+			c += c_arr[mid[x+3]]
+			nimg1.Set(x, y, color.Gray{uint8(c)})
+		}
+
 	}
 	_ = img
 
 	nimg2 := image.NewRGBA(rect)
 	for x := 0; x < rect.Max.X; x++ {
+
+		// store a column of pixel val to int array
+		mid = make([]int, rect.Max.Y)
 		for y := 0; y < 3; y++ {
-			c0, _, _, _ := nimg1.At(x, y).RGBA()
+			c0, _, _, _ = nimg1.At(x, y).RGBA()
+			mid[y] = 4 * int(c0&0xFF)
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
 		for y := 3; y < rect.Max.Y-3; y++ {
-			c0, _, _, _ = nimg1.At(x, y-3).RGBA()
-			c1, _, _, _ = nimg1.At(x, y-2).RGBA()
-			c2, _, _, _ = nimg1.At(x, y-1).RGBA()
-			c3, _, _, _ = nimg1.At(x, y).RGBA()
-			c4, _, _, _ = nimg1.At(x, y+1).RGBA()
-			c5, _, _, _ = nimg1.At(x, y+2).RGBA()
-			c6, _, _, _ = nimg1.At(x, y+3).RGBA()
-			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
-			nimg2.Set(x, y, color.Gray{c})
+			c0, _, _, _ = nimg1.At(x, y).RGBA()
+			mid[y] = 4 * int(c0&0xFF)
 		}
 		for y := rect.Max.Y - 3; y < rect.Max.Y; y++ {
-			c0, _, _, _ := nimg1.At(x, y).RGBA()
+			c0, _, _, _ = nimg1.At(x, y).RGBA()
+			mid[y] = 4 * int(c0&0xFF)
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
+
+		// invoke corresponding floating val to pix array
+		for y := 3; y < rect.Max.Y-3; y++ {
+			c = c_arr[mid[y-3]]
+			c += c_arr[mid[y-2]+1]
+			c += c_arr[mid[y-1]+2]
+			c += c_arr[mid[y]+3]
+			c += c_arr[mid[y+1]+2]
+			c += c_arr[mid[y+2]+1]
+			c += c_arr[mid[y+3]]
+			nimg2.Set(x, y, color.Gray{uint8(c)})
+		}
+
 	}
 	return nimg2
 }
@@ -420,19 +451,19 @@ func main() {
 	nimg := g_smoothing(img)
 
 	// cut off pixels below the average color
-	nimg, _ = cutoffRGBA(nimg)
+	//	nimg, _ = cutoffRGBA(nimg)
 
 	// settle it black(0x00) and white(0xFF)
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-	nimg = sb(nimg, 2)
+	//	nimg = sb(nimg, 2)
 
 	// prewitt algorithm
 	//	img = pw(img)
 
 	// binary conversion
-	nimg = binary(nimg)
+	//	nimg = binary(nimg)
 
 	/*
 		// iterate lines
@@ -454,11 +485,11 @@ func main() {
 		}
 	*/
 
-	cnt, r := hough(nimg)
+	//cnt, r := hough(nimg)
 
-	img = drawCircle(img, cnt, r)
+	//nimg = drawCircle(img, cnt, r)
 
-	png.Encode(os.Stdout, img)
+	png.Encode(os.Stdout, nimg)
 	log.Printf("Process took %s", time.Since(start))
 
 }
