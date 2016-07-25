@@ -458,7 +458,11 @@ func main() {
 
 	img = drawCircle(img, cnt, r)
 
-	png.Encode(os.Stdout, img)
+	err = png.Encode(os.Stdout, img)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
+		os.Exit(1)
+	}
 	log.Printf("Process took %s", time.Since(start))
 
 }
