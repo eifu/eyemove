@@ -121,53 +121,54 @@ func g_smoothing(img image.Image) *image.RGBA {
 	rect := img.Bounds()
 	nimg1 := image.NewRGBA(rect)
 	// convolution algorithm
-	var c0, c1, c2, c3, c4, c5, c6 uint32
+	var c0 uint32
 
+	midcol := make([]uint32, rect.Max.X)
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < 3; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
+			midcol[x] = c0
+			nimg1.Set(x, y, color.Gray{uint8(c0)})
+		}
+		for x := 3; x < rect.Max.X-3; x++ {
+			c0, _, _, _ = img.At(x, y).RGBA()
+			midcol[x] = c0
+		}
+		for x := rect.Max.X - 3; x < rect.Max.X; x++ {
+			c0, _, _, _ = img.At(x, y).RGBA()
+			midcol[x] = c0
 			nimg1.Set(x, y, color.Gray{uint8(c0)})
 		}
 
 		for x := 3; x < rect.Max.X-3; x++ {
-			c0, _, _, _ = img.At(x-3, y).RGBA()
-			c1, _, _, _ = img.At(x-2, y).RGBA()
-			c2, _, _, _ = img.At(x-1, y).RGBA()
-			c3, _, _, _ = img.At(x, y).RGBA()
-			c4, _, _, _ = img.At(x+1, y).RGBA()
-			c5, _, _, _ = img.At(x+2, y).RGBA()
-			c6, _, _, _ = img.At(x+3, y).RGBA()
-			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
+			c := conv1d2(midcol[x-3 : x+4])
 			nimg1.Set(x, y, color.Gray{c})
-		}
-
-		for x := rect.Max.X - 3; x < rect.Max.X; x++ {
-			c0, _, _, _ := img.At(x, y).RGBA()
-			nimg1.Set(x, y, color.Gray{uint8(c0)})
 		}
 	}
 	_ = img
+	_ = midcol
 
 	nimg2 := image.NewRGBA(rect)
+	midrow := make([]uint32, rect.Max.Y)
 	for x := 0; x < rect.Max.X; x++ {
 		for y := 0; y < 3; y++ {
 			c0, _, _, _ := nimg1.At(x, y).RGBA()
+			midrow[y] = c0
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
 		for y := 3; y < rect.Max.Y-3; y++ {
-			c0, _, _, _ = nimg1.At(x, y-3).RGBA()
-			c1, _, _, _ = nimg1.At(x, y-2).RGBA()
-			c2, _, _, _ = nimg1.At(x, y-1).RGBA()
-			c3, _, _, _ = nimg1.At(x, y).RGBA()
-			c4, _, _, _ = nimg1.At(x, y+1).RGBA()
-			c5, _, _, _ = nimg1.At(x, y+2).RGBA()
-			c6, _, _, _ = nimg1.At(x, y+3).RGBA()
-			c := conv1d(c0, c1, c2, c3, c4, c5, c6)
-			nimg2.Set(x, y, color.Gray{c})
+			c0, _, _, _ = nimg1.At(x, y).RGBA()
+			midrow[y] = c0
 		}
 		for y := rect.Max.Y - 3; y < rect.Max.Y; y++ {
-			c0, _, _, _ := nimg1.At(x, y).RGBA()
+			c0, _, _, _ = nimg1.At(x, y).RGBA()
+			midrow[y] = c0
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
+		}
+
+		for y := 3; y < rect.Max.Y-3; y++ {
+			c := conv1d2(midrow[y-3 : y+4])
+			nimg2.Set(x, y, color.Gray{c})
 		}
 	}
 	return nimg2
@@ -175,13 +176,28 @@ func g_smoothing(img image.Image) *image.RGBA {
 
 func conv1d(c0, c1, c2, c3, c4, c5, c6 uint32) uint8 {
 	f0 := float64(c0&0xFF) * 0.006
-	f1 := float64(c1&0xFF) * 0.061
-	f2 := float64(c2&0xFF) * 0.242
-	f3 := float64(c3&0xFF) * 0.383
-	f4 := float64(c4&0xFF) * 0.242
-	f5 := float64(c5&0xFF) * 0.061
-	f6 := float64(c6&0xFF) * 0.006
-	return uint8(f0 + f1 + f2 + f3 + f4 + f5 + f6)
+	f0 += float64(c1&0xFF) * 0.061
+	f0 += float64(c2&0xFF) * 0.242
+	f0 += float64(c3&0xFF) * 0.383
+	f0 += float64(c4&0xFF) * 0.242
+	f0 += float64(c5&0xFF) * 0.061
+	f0 += float64(c6&0xFF) * 0.006
+	return uint8(f0)
+}
+
+func conv1d2(a []uint32) uint8 {
+	if len(a) != 7 {
+		fmt.Fprintf(os.Stderr, "conv1d2: error invalid length %v\n", a)
+		os.Exit(1)
+	}
+	f0 := float64(a[0]&0xFF) * 0.006
+	f0 += float64(a[1]&0xFF) * 0.061
+	f0 += float64(a[2]&0xFF) * 0.242
+	f0 += float64(a[3]&0xFF) * 0.383
+	f0 += float64(a[4]&0xFF) * 0.242
+	f0 += float64(a[5]&0xFF) * 0.061
+	f0 += float64(a[6]&0xFF) * 0.006
+	return uint8(f0)
 }
 
 func binary(img image.Image) *image.RGBA {
@@ -420,19 +436,19 @@ func main() {
 	nimg := g_smoothing(img)
 
 	// cut off pixels below the average color
-	nimg, _ = cutoffRGBA(nimg)
+	//	nimg, _ = cutoffRGBA(nimg)
 
 	// settle it black(0x00) and white(0xFF)
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-	nimg = sb(nimg, 2)
+	//	nimg = sb(nimg, 2)
 
 	// prewitt algorithm
 	//	img = pw(img)
 
 	// binary conversion
-	nimg = binary(nimg)
+	//	nimg = binary(nimg)
 
 	/*
 		// iterate lines
@@ -454,11 +470,11 @@ func main() {
 		}
 	*/
 
-	cnt, r := hough(nimg)
+	//	cnt, r := hough(nimg)
 
-	img = drawCircle(img, cnt, r)
+	//	img = drawCircle(img, cnt, r)
 
-	err = png.Encode(os.Stdout, img)
+	err = png.Encode(os.Stdout, nimg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
 		os.Exit(1)
