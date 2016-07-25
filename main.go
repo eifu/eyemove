@@ -12,6 +12,105 @@ import (
 	"time"
 )
 
+const (
+	MinEyeR = 10
+)
+
+func hough(img image.Image) (image.Point, int) {
+	rect := img.Bounds()
+
+	var rx, ry, r0, r, x0, x, y0, y, deg, rad float64
+	var c uint32
+
+	width, height, area := float64(rect.Max.X), float64(rect.Max.Y), rect.Max.X*rect.Max.Y
+
+	rmax := int(math.Min(float64(width), float64(height)))
+	acc := make([]int, area*(rmax-MinEyeR))
+
+	for y = 0; y < height; y++ {
+		for x = 0; x < width; x++ {
+			c, _, _, _ = img.At(int(x), int(y)).RGBA()
+
+			rx = math.Min(x, float64(width-x))
+			ry = math.Min(y, float64(height-y))
+			r0 = math.Min(rx, ry)
+			if r0 > 0 && c&0xFF == 0xFF {
+				for r = MinEyeR; r < r0; r++ {
+					for deg = 0; deg < 360; deg++ {
+						rad = deg * math.Pi / 180.0
+						x0 = x + r*math.Cos(rad)
+						y0 = y + r*math.Sin(rad)
+						acc[int(x0+y0*width)+(int(r)-MinEyeR)*area] += 1
+					}
+				}
+			}
+		}
+	}
+
+	var max int
+	var p image.Point
+	maxlist := make([]int, rmax-MinEyeR)
+	cntlist := make([]image.Point, rmax-MinEyeR)
+
+	for r := 0; r < rmax-MinEyeR; r++ {
+		max = 0
+		p = image.Point{0, 0}
+		for y = 0; y < height; y++ {
+			for x = 0; x < width; x++ {
+				if max < acc[int(x+y*width)+int(r)*area] {
+					max = acc[int(x+y*width)+int(r)*area]
+					p = image.Point{int(x), int(y)}
+				}
+			}
+		}
+		maxlist[r] = max
+		cntlist[r] = p
+	}
+
+	diff := make([]int, len(maxlist)-1)
+	// length is rmax-1 to get diff of each val
+	for i := 0; i < len(diff)-1; i++ {
+		diff[i] = maxlist[i] - maxlist[i+1]
+	}
+
+	var closeto0 float64 = 100
+	diffi := 0
+	var tmp float64
+	for i := 1; i < len(diff)-2; i++ {
+		tmp = float64(diff[i-1] + diff[i] + diff[i+1] + diff[i+2])
+		if closeto0 > tmp*tmp {
+			closeto0 = tmp * tmp
+			diffi = i + 1
+			// TODO: +1 is arbitrary need to check i or i+1 somehow
+		}
+	}
+	return cntlist[diffi], diffi + MinEyeR
+}
+
+func drawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
+	rect := img.Bounds()
+	nimg := image.NewRGBA(rect)
+	var c uint32
+	var deg, rad, x0, y0 float64
+	for y := 0; y < rect.Max.Y; y++ {
+		for x := 0; x < rect.Max.X; x++ {
+			c, _, _, _ = img.At(x, y).RGBA()
+			nimg.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+		}
+	}
+
+	xf, yf, rf := float64(cnt.X), float64(cnt.Y), float64(r)
+
+	for deg = 0; deg < 360; deg++ {
+		rad = deg * math.Pi / 180.0
+		x0 = xf + rf*math.Cos(rad)
+		y0 = yf + rf*math.Sin(rad)
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+	}
+	nimg.Set(cnt.X, cnt.Y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+	return nimg
+}
+
 func g_smoothing(img image.Image) *image.RGBA {
 	log.Print("start gaussian smoothing")
 	rect := img.Bounds()
@@ -169,7 +268,7 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
-func sb(img image.Image, w float64) image.Image {
+func sb(img image.Image, w float64) *image.RGBA {
 	log.Print("start sobel algorithm...")
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
@@ -313,22 +412,22 @@ func main() {
 	}
 
 	// gaussian smoothing function
-	img = g_smoothing(img)
+	nimg := g_smoothing(img)
 
 	// cut off pixels below the average color
-	img, _ = cutoffRGBA(img)
+	nimg, _ = cutoffRGBA(nimg)
 
 	// settle it black(0x00) and white(0xFF)
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-	img = sb(img, 2)
+	nimg = sb(nimg, 2)
 
 	// prewitt algorithm
 	//	img = pw(img)
 
 	// binary conversion
-	img = binary(img)
+	nimg = binary(nimg)
 
 	/*
 		// iterate lines
@@ -349,6 +448,12 @@ func main() {
 			nimg.Set(rowminx, y, color.RGBA{0x1A, 0x1A, 0x65, 0xFF})
 		}
 	*/
+
+	cnt, r := hough(nimg)
+
+	img = drawCircle(img, cnt, r)
+
 	png.Encode(os.Stdout, img)
 	log.Printf("Process took %s", time.Since(start))
+
 }
