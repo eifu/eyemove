@@ -17,6 +17,7 @@ const (
 )
 
 func hough(img image.Image) (image.Point, int) {
+	// img is binary image
 	rect := img.Bounds()
 
 	var rx, ry, r0, r, x0, x, y0, y, deg, rad float64
@@ -31,10 +32,15 @@ func hough(img image.Image) (image.Point, int) {
 		for x = 0; x < width; x++ {
 			c, _, _, _ = img.At(int(x), int(y)).RGBA()
 
-			rx = math.Min(x, float64(width-x))
-			ry = math.Min(y, float64(height-y))
+			// r0 is min distance from horizontal or vertical edges
+			rx = math.Min(x, width-x)
+			ry = math.Min(y, height-y)
 			r0 = math.Min(rx, ry)
-			if r0 > 0 && c&0xFF == 0xFF {
+
+			// if min distance is larger than MinEyeR
+			// and if pixel is white
+			if r0 > MinEyeR && c&0xFF == 0xFF {
+				// tranform to 3d space
 				for r = MinEyeR; r < r0; r++ {
 					for deg = 0; deg < 360; deg++ {
 						rad = deg * math.Pi / 180.0
@@ -47,37 +53,36 @@ func hough(img image.Image) (image.Point, int) {
 		}
 	}
 
-	var max int
-	var p image.Point
+	// find maximus value acc in a for each radious
+	// store data to two arrays
 	maxlist := make([]int, rmax-MinEyeR)
 	cntlist := make([]image.Point, rmax-MinEyeR)
-
 	for r := 0; r < rmax-MinEyeR; r++ {
-		max = 0
-		p = image.Point{0, 0}
+		max := 0
+		cntP := image.Point{0, 0}
 		for y = 0; y < height; y++ {
 			for x = 0; x < width; x++ {
 				if max < acc[int(x+y*width)+int(r)*area] {
 					max = acc[int(x+y*width)+int(r)*area]
-					p = image.Point{int(x), int(y)}
+					cntP = image.Point{int(x), int(y)}
 				}
 			}
 		}
 		maxlist[r] = max
-		cntlist[r] = p
+		cntlist[r] = cntP
 	}
 
+	// find a local maximam of maxlist
 	diff := make([]int, len(maxlist)-1)
-	// length is rmax-1 to get diff of each val
 	for i := 0; i < len(diff)-1; i++ {
 		diff[i] = maxlist[i] - maxlist[i+1]
 	}
 
-	var closeto0 float64 = 100
-	diffi := 0
-	var tmp float64
+	// the local maximam with good hat-shape in
+	// [-1, 0, 1, 2] scope
+	closeto0, diffi := 100, 0
 	for i := 1; i < len(diff)-2; i++ {
-		tmp = float64(diff[i-1] + diff[i] + diff[i+1] + diff[i+2])
+		tmp := diff[i-1] + diff[i] + diff[i+1] + diff[i+2]
 		if closeto0 > tmp*tmp {
 			closeto0 = tmp * tmp
 			diffi = i + 1
