@@ -122,53 +122,81 @@ func g_smoothing(img image.Image) *image.RGBA {
 	nimg1 := image.NewRGBA(rect)
 	// convolution algorithm
 	var c0 uint32
+	var c float64
+	var mid []int
 
-	midcol := make([]uint32, rect.Max.X)
+	// store floating val to int array from 0 to 255
+	c_arr := make([]float64, 256*4)
+	for i := 0; i < 256; i++ {
+		c_arr[4*i] = float64(i) * 0.383
+		c_arr[4*i+1] = float64(i) * 0.242
+		c_arr[4*i+2] = float64(i) * 0.061
+		c_arr[4*i+3] = float64(i) * 0.006
+	}
+
 	for y := 0; y < rect.Max.Y; y++ {
+
+		// store a column of pixel val to int array
+		mid = make([]int, rect.Max.X)
 		for x := 0; x < 3; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
-			midcol[x] = c0
+			mid[x] = 4 * int(c0&0xFF)
 			nimg1.Set(x, y, color.Gray{uint8(c0)})
 		}
 		for x := 3; x < rect.Max.X-3; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
-			midcol[x] = c0
+			mid[x] = 4 * int(c0&0xFF)
 		}
 		for x := rect.Max.X - 3; x < rect.Max.X; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
-			midcol[x] = c0
+			mid[x] = 4 * int(c0&0xFF)
 			nimg1.Set(x, y, color.Gray{uint8(c0)})
 		}
 
+		// invoke corresponding floating val to pix array
 		for x := 3; x < rect.Max.X-3; x++ {
-			c := conv1d2(midcol[x-3 : x+4])
-			nimg1.Set(x, y, color.Gray{c})
+			c = c_arr[mid[x-3]+3]
+			c += c_arr[mid[x-2]+2]
+			c += c_arr[mid[x-1]+1]
+			c += c_arr[mid[x]]
+			c += c_arr[mid[x+1]+1]
+			c += c_arr[mid[x+2]+2]
+			c += c_arr[mid[x+3]+3]
+			nimg1.Set(x, y, color.Gray{uint8(c)})
 		}
 	}
 	_ = img
-	_ = midcol
 
 	nimg2 := image.NewRGBA(rect)
-	midrow := make([]uint32, rect.Max.Y)
 	for x := 0; x < rect.Max.X; x++ {
+
+		// store a column of pixel val to int array
+		mid = make([]int, rect.Max.Y)
 		for y := 0; y < 3; y++ {
-			c0, _, _, _ := nimg1.At(x, y).RGBA()
-			midrow[y] = c0
+			c0, _, _, _ = nimg1.At(x, y).RGBA()
+			mid[y] = 4 * int(c0&0xFF)
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
 		for y := 3; y < rect.Max.Y-3; y++ {
 			c0, _, _, _ = nimg1.At(x, y).RGBA()
-			midrow[y] = c0
+			mid[y] = 4 * int(c0&0xFF)
 		}
 		for y := rect.Max.Y - 3; y < rect.Max.Y; y++ {
 			c0, _, _, _ = nimg1.At(x, y).RGBA()
-			midrow[y] = c0
+			mid[y] = 4 * int(c0&0xFF)
 			nimg2.Set(x, y, color.Gray{uint8(c0)})
 		}
 
+		// invoke corresponding floating val to pix array
 		for y := 3; y < rect.Max.Y-3; y++ {
-			c := conv1d2(midrow[y-3 : y+4])
-			nimg2.Set(x, y, color.Gray{c})
+			c = c_arr[mid[y-3]+3]
+			c += c_arr[mid[y-2]+2]
+			c += c_arr[mid[y-1]+1]
+			c += c_arr[mid[y]]
+			c += c_arr[mid[y+1]+1]
+			c += c_arr[mid[y+2]+2]
+			c += c_arr[mid[y+3]+3]
+			nimg2.Set(x, y, color.Gray{uint8(c)})
 		}
 	}
 	return nimg2
@@ -470,9 +498,9 @@ func main() {
 		}
 	*/
 
-	//	cnt, r := hough(nimg)
+	//cnt, r := hough(nimg)
 
-	//	img = drawCircle(img, cnt, r)
+	//nimg = drawCircle(img, cnt, r)
 
 	err = png.Encode(os.Stdout, nimg)
 	if err != nil {
@@ -480,5 +508,4 @@ func main() {
 		os.Exit(1)
 	}
 	log.Printf("Process took %s", time.Since(start))
-
 }
