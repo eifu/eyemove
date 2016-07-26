@@ -27,6 +27,7 @@ func hough(img, pimg image.Image) *image.RGBA {
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
+
 	// tranform to 3d space
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -46,7 +47,6 @@ func hough(img, pimg image.Image) *image.RGBA {
 			}
 		}
 	}
-
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
 	maxl := make([]int, rmax-MinEyeR)
@@ -86,7 +86,9 @@ func hough(img, pimg image.Image) *image.RGBA {
 			// TODO: i or i+1 is arbitrary
 		}
 	}
-
+	log.Print(maxl)
+	log.Print(cntl)
+	log.Print(cc)
 	// TODO: best 2 is arbitrary
 	// accm0, accm1: best 2 accumulation maximums
 	// cd0, cd1: best 2 candidates of radious
@@ -105,6 +107,8 @@ func hough(img, pimg image.Image) *image.RGBA {
 			cd1 = e
 		}
 	}
+
+	log.Print("best1 ", cntl[cd0], " accm0", accm0, " best2", cntl[cd1], "accm1", accm1)
 
 	// determine which one has more black pixels than the other
 	var acc0, acc1 uint32
@@ -125,9 +129,10 @@ func hough(img, pimg image.Image) *image.RGBA {
 	}
 	dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
 	if dens0 < dens1 {
+		log.Print(cntl[cd0], cd0+MinEyeR)
 		return drawCircle(pimg, cntl[cd0], cd0+MinEyeR)
 	}
-
+	log.Print(cntl[cd1], cd1+MinEyeR)
 	return drawCircle(pimg, cntl[cd1], cd1+MinEyeR)
 }
 func drawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
@@ -270,6 +275,7 @@ func binary(img image.Image) *image.RGBA {
 	log.Print("start settling black or white")
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
+
 	var acc, ave, c0 uint32
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
@@ -278,6 +284,8 @@ func binary(img image.Image) *image.RGBA {
 		}
 	}
 	ave = acc / uint32(rect.Max.X*rect.Max.Y)
+
+	//var white []image.Point
 
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
@@ -375,35 +383,32 @@ func sb(img image.Image, w float64) *image.RGBA {
 
 func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
 	var accY, accX float64
+	var c uint32
 	for j := y - 1; j < y+2; j++ {
 		for i := x - 1; i < x+2; i++ {
 			if (image.Point{i, j}.In(img.Bounds())) {
-				c, _, _, _ := img.At(i, j).RGBA()
+				c, _, _, _ = img.At(i, j).RGBA()
 				switch {
 				case i == x-1 && j != y:
-					accY = accY - float64(c&0xFF)
+					accY -= float64(c & 0xFF)
 				case i == x-1 && j == y:
-					accY = accY - w*float64(c&0xFF)
+					accY -= w * float64(c&0xFF)
 				case i == x+1 && j != y:
-					accY = accY + float64(c&0xFF)
+					accY += float64(c & 0xFF)
 				case i == x+1 && j == y:
-					accY = accY + w*float64(c&0xFF)
+					accY += w * float64(c&0xFF)
 				}
-			}
-			if (image.Point{i, j}.In(img.Bounds())) {
-				c, _, _, _ := img.At(i, j).RGBA()
 				switch {
 				case i != x && j == y-1:
-					accX = accX - float64(c&0xFF)
+					accX -= float64(c & 0xFF)
 				case i == x && j == y-1:
-					accX = accX - w*float64(c&0xFF)
+					accX -= w * float64(c&0xFF)
 				case i != x && j == y+1:
-					accX = accX + float64(c&0xFF)
+					accX += float64(c & 0xFF)
 				case i == x && j == y+1:
-					accX = accX + w*float64(c&0xFF)
+					accX += w * float64(c&0xFF)
 				}
 			}
-
 		}
 	}
 	return accY, accX
