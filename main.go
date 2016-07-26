@@ -16,37 +16,34 @@ const (
 	MinEyeR = 10
 )
 
-func hough(img image.Image) (image.Point, int) {
+func hough(img, pimg image.Image) *image.RGBA {
+	log.Print("start hough transforming")
 	// img is binary image
 	rect := img.Bounds()
 
-	var rx, ry, r0, r, x0, x, y0, y, deg, rad float64
+	var deg, rad float64
 	var c uint32
+	var x0, y0, x1, y1, tmp int
+	width, height := rect.Max.X, rect.Max.Y
 
-	width, height, area := float64(rect.Max.X), float64(rect.Max.Y), rect.Max.X*rect.Max.Y
-
-	rmax := int(math.Min(float64(width), float64(height)))
-	acc := make([]int, area*(rmax-MinEyeR))
-
-	for y = 0; y < height; y++ {
-		for x = 0; x < width; x++ {
+	//	rmax := int(math.Min(float64(width), float64(height)))
+	rmax := height / 2
+	acc := make([]int, width*height*(rmax-MinEyeR))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			c, _, _, _ = img.At(int(x), int(y)).RGBA()
 
-			// r0 is min distance from horizontal or vertical edges
-			rx = math.Min(x, width-x)
-			ry = math.Min(y, height-y)
-			r0 = math.Min(rx, ry)
-
-			// if min distance is larger than MinEyeR
-			// and if pixel is white
-			if r0 > MinEyeR && c&0xFF == 0xFF {
+			// if pixel is white
+			if c&0xFF == 0xFF {
 				// tranform to 3d space
-				for r = MinEyeR; r < r0; r++ {
+				for r := 0; r < rmax-MinEyeR; r++ {
 					for deg = 0; deg < 360; deg++ {
 						rad = deg * math.Pi / 180.0
-						x0 = x + r*math.Cos(rad)
-						y0 = y + r*math.Sin(rad)
-						acc[int(x0+y0*width)+(int(r)-MinEyeR)*area] += 1
+						x0 = x + int(float64(r+MinEyeR)*math.Cos(rad))
+						y0 = y + int(float64(r+MinEyeR)*math.Sin(rad))
+						if 0 <= x0 && x0 < width && 0 <= y0 && y0 < height {
+							acc[x0+y0*width+width*height*r] += 1
+						}
 					}
 				}
 			}
@@ -54,44 +51,88 @@ func hough(img image.Image) (image.Point, int) {
 	}
 
 	// find maximus value acc in a for each radious
-	// store data to two arrays
-	maxlist := make([]int, rmax-MinEyeR)
-	cntlist := make([]image.Point, rmax-MinEyeR)
+	// maxlist store data max accumulated point for each radious
+	maxl := make([]int, rmax-MinEyeR)
+	// cntlist store center Point that is maximum acc
+	cntl := make([]image.Point, rmax-MinEyeR)
+
 	for r := 0; r < rmax-MinEyeR; r++ {
-		max := 0
-		cntP := image.Point{0, 0}
-		for y = 0; y < height; y++ {
-			for x = 0; x < width; x++ {
-				if max < acc[int(x+y*width)+int(r)*area] {
-					max = acc[int(x+y*width)+int(r)*area]
-					cntP = image.Point{int(x), int(y)}
+		tmp = 0
+		cnt := image.Point{0, 0}
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				if tmp < acc[x+y*width+r*width*height] {
+					tmp = acc[x+y*width+r*width*height]
+					cnt = image.Point{x, y}
 				}
 			}
 		}
-		maxlist[r] = max
-		cntlist[r] = cntP
+		maxl[r] = tmp
+		cntl[r] = cnt
 	}
 
-	// find a local maximam of maxlist
-	diff := make([]int, len(maxlist)-1)
-	for i := 0; i < len(diff)-1; i++ {
-		diff[i] = maxlist[i] - maxlist[i+1]
+	// difference between each value in maxlist
+	difm := make([]int, rmax-MinEyeR-1)
+
+	// rectilinear distance between each center pointn in cntlist
+	difc := make([]int, rmax-MinEyeR-1)
+
+	for i := 0; i < len(difm)-1; i++ {
+		difm[i] = maxl[i] - maxl[i+1]
+		difc[i] = cntl[i].X - cntl[i+1].X + cntl[i].Y - cntl[i+1].Y
 	}
 
-	// the local maximam with good hat-shape in
-	// [-1, 0, 1, 2] scope
-	closeto0, diffi := 100, 0
-	for i := 1; i < len(diff)-2; i++ {
-		tmp := diff[i-1] + diff[i] + diff[i+1] + diff[i+2]
-		if closeto0 > tmp*tmp {
-			closeto0 = tmp * tmp
-			diffi = i + 1
-			// TODO: +1 is arbitrary need to check i or i+1 somehow
+	// candidates of canditates of radious
+	var cc []int
+	for i := 1; i < len(difc)-2; i++ {
+		if difm[i-1] < 0 && difm[i] < 0 && 0 < difm[i+1] && 0 < difm[i+2] {
+			cc = append(cc, i)
+			// TODO: i or i+1 is arbitrary
 		}
 	}
-	return cntlist[diffi], diffi + MinEyeR
-}
 
+	// accm0, accm1: best 2 accumulation maximums
+	// cd0, cd1: best 2 candidates of radious
+	var cd0, cd1, accm0, accm1 int
+
+	for _, e := range cc {
+		if accm0 < maxl[e] {
+			tmp = accm0
+			accm0 = maxl[e]
+			accm1 = tmp
+			tmp = cd0
+			cd0 = e
+			cd1 = tmp
+		} else if accm1 < maxl[e] {
+			accm1 = maxl[e]
+			cd1 = e
+		}
+	}
+
+	// determine which one has more black pixels than the other
+	var acc0, acc1 float64
+	x0, y0, x1, y1 = cntl[cd0].X, cntl[cd0].Y, cntl[cd1].X, cntl[cd1].Y
+	cd0 += MinEyeR
+	cd1 += MinEyeR
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if (x-x0)*(x-x0)+(y-y0)*(y-y0) < cd0*cd0 {
+				c, _, _, _ = pimg.At(x, y).RGBA()
+				acc0 += float64(c & 0xFF)
+			}
+			if (x-x1)*(x-x1)+(y-y1)*(y-y1) < cd1*cd1 {
+				c, _, _, _ = pimg.At(x, y).RGBA()
+				acc1 += float64(c & 0xFF)
+			}
+		}
+	}
+	dens0, dens1 := acc0/(float64(cd0*cd0)*math.Pi), acc1/(float64(cd1*cd1)*math.Pi)
+	if dens0 < dens1 {
+		return drawCircle(pimg, cntl[cd0-MinEyeR], cd0)
+	}
+
+	return drawCircle(pimg, cntl[cd1-MinEyeR], cd1)
+}
 func drawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
@@ -420,19 +461,19 @@ func main() {
 	nimg := g_smoothing(img)
 
 	// cut off pixels below the average color
-	//	nimg, _ = cutoffRGBA(nimg)
+	nimg, _ = cutoffRGBA(nimg)
 
 	// settle it black(0x00) and white(0xFF)
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-	//	nimg = sb(nimg, 2)
+	nimg = sb(nimg, 5)
 
 	// prewitt algorithm
 	//	img = pw(img)
 
 	// binary conversion
-	//	nimg = binary(nimg)
+	nimg = binary(nimg)
 
 	/*
 		// iterate lines
@@ -454,9 +495,7 @@ func main() {
 		}
 	*/
 
-	//	cnt, r := hough(nimg)
-
-	//	img = drawCircle(img, cnt, r)
+	nimg = hough(nimg, img)
 
 	err = png.Encode(os.Stdout, nimg)
 	if err != nil {
