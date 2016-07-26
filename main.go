@@ -16,10 +16,9 @@ const (
 	MinEyeR = 10
 )
 
-func hough(img, pimg image.Image) *image.RGBA {
+func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	log.Print("start hough transforming")
-	// img is binary image
-	rect := img.Bounds()
+	rect := pimg.Bounds()
 
 	var deg, rad float64
 	var c uint32
@@ -27,22 +26,60 @@ func hough(img, pimg image.Image) *image.RGBA {
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
-
 	// tranform to 3d space
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			c, _, _, _ = img.At(x, y).RGBA()
-			// if pixel is white
-			if c&0xFF == 0xFF {
-				for r := 0; r < rmax-MinEyeR; r++ {
-					for deg = 0; deg < 360; deg++ {
-						rad = deg * math.Pi / 180.0
-						x0 = x + int(float64(r+MinEyeR)*math.Cos(rad))
-						y0 = y + int(float64(r+MinEyeR)*math.Sin(rad))
-						if (image.Point{x0, y0}.In(rect)) {
-							acc[x0+y0*width+width*height*r] += 1
-						}
-					}
+	for _, p := range w {
+		for r := 0; r < rmax-MinEyeR; r++ {
+			for deg = 0; deg < 45; deg++ {
+				rad = deg * math.Pi / 180.0
+				x1 = int(float64(r+MinEyeR) * math.Cos(rad))
+				y1 = int(float64(r+MinEyeR) * math.Sin(rad))
+				// first quadrant 0-45
+				x0 = p.X + x1
+				y0 = p.Y + y1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// first quadrant 46-90
+				x0 = p.X + y1
+				y0 = p.Y + x1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// second quadrant 90-135
+				x0 = p.X - y1
+				y0 = p.Y + x1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// second quadrant 136-180
+				x0 = p.X - x1
+				y0 = p.Y + y1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// third quadrant 181-215
+				x0 = p.X - x1
+				y0 = p.Y - y1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// third quadrant 226-275
+				x0 = p.X - y1
+				y0 = p.Y - x1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// fourth quadrant 276-315
+				x0 = p.X + y1
+				y0 = p.Y - x1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// fourth quadrant 316-359
+				x0 = p.X + x1
+				y0 = p.Y - y1
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
 				}
 			}
 		}
@@ -86,9 +123,6 @@ func hough(img, pimg image.Image) *image.RGBA {
 			// TODO: i or i+1 is arbitrary
 		}
 	}
-	log.Print(maxl)
-	log.Print(cntl)
-	log.Print(cc)
 	// TODO: best 2 is arbitrary
 	// accm0, accm1: best 2 accumulation maximums
 	// cd0, cd1: best 2 candidates of radious
@@ -107,8 +141,6 @@ func hough(img, pimg image.Image) *image.RGBA {
 			cd1 = e
 		}
 	}
-
-	log.Print("best1 ", cntl[cd0], " accm0", accm0, " best2", cntl[cd1], "accm1", accm1)
 
 	// determine which one has more black pixels than the other
 	var acc0, acc1 uint32
@@ -129,30 +161,57 @@ func hough(img, pimg image.Image) *image.RGBA {
 	}
 	dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
 	if dens0 < dens1 {
-		log.Print(cntl[cd0], cd0+MinEyeR)
 		return drawCircle(pimg, cntl[cd0], cd0+MinEyeR)
 	}
-	log.Print(cntl[cd1], cd1+MinEyeR)
 	return drawCircle(pimg, cntl[cd1], cd1+MinEyeR)
 }
 func drawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var c uint32
-	var deg, rad, x0, y0 float64
+	var deg, rad, x0, y0, x1, y1 float64
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
 			c, _, _, _ = img.At(x, y).RGBA()
 			nimg.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
 		}
 	}
-
 	xf, yf, rf := float64(cnt.X), float64(cnt.Y), float64(r)
-
-	for deg = 0; deg < 360; deg++ {
+	for deg = 0; deg < 45; deg++ {
 		rad = deg * math.Pi / 180.0
-		x0 = xf + rf*math.Cos(rad)
-		y0 = yf + rf*math.Sin(rad)
+		x1 = rf * math.Cos(rad)
+		y1 = rf * math.Sin(rad)
+		// first quadrant 0-45
+		x0 = xf + x1
+		y0 = yf + y1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// first quadrant 46-90
+		x0 = xf + y1
+		y0 = yf + x1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// second quadrant 91-135
+		x0 = xf - y1
+		y0 = yf + x1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// second quadrant 136-180
+		x0 = xf - x1
+		y0 = yf + y1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// third quadrant 181-215
+		x0 = xf - x1
+		y0 = yf - y1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// third quadrant 216-270
+		x0 = xf - y1
+		y0 = yf - x1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// fourth quadrant 271-315
+		x0 = xf + y1
+		y0 = yf - x1
+		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		// fourth quadrant 316-359
+		x0 = xf + x1
+		y0 = yf - y1
 		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 	}
 	nimg.Set(cnt.X, cnt.Y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
@@ -271,33 +330,32 @@ func conv1d2(a []uint32) uint8 {
 	return uint8(f0)
 }
 
-func binary(img image.Image) *image.RGBA {
+func binary(img image.Image) []image.Point {
 	log.Print("start settling black or white")
 	rect := img.Bounds()
-	nimg := image.NewRGBA(rect)
+	width, height := rect.Max.X, rect.Max.Y
+	cl := make([]uint32, width*height)
 
 	var acc, ave, c0 uint32
-	for y := 0; y < rect.Max.Y; y++ {
-		for x := 0; x < rect.Max.X; x++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			c0, _, _, _ = img.At(x, y).RGBA()
+			cl[x+y*width] = c0 & 0xFF
 			acc = acc + c0&0xFF
 		}
 	}
-	ave = acc / uint32(rect.Max.X*rect.Max.Y)
+	ave = acc / uint32(width*height)
 
-	//var white []image.Point
+	var w []image.Point
 
-	for y := 0; y < rect.Max.Y; y++ {
-		for x := 0; x < rect.Max.X; x++ {
-			c0, _, _, _ = img.At(x, y).RGBA()
-			if c0&0xFF > ave {
-				nimg.Set(x, y, color.Gray{255})
-			} else {
-				nimg.Set(x, y, color.Gray{0})
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if cl[x+y*width] > ave {
+				w = append(w, image.Point{x, y})
 			}
 		}
 	}
-	return nimg
+	return w
 }
 
 func cutoffRGBA(img image.Image) (*image.RGBA, uint32) {
@@ -490,7 +548,7 @@ func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 
 func main() {
 	start := time.Now()
-	file, err := os.Open("data/test1.jpg")
+	file, err := os.Open("data/test2.jpg")
 	defer file.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "main open file :%v\n", err)
@@ -519,7 +577,7 @@ func main() {
 	//	img = pw(img)
 
 	// binary conversion
-	nimg = binary(nimg)
+	w := binary(nimg)
 
 	/*
 		// iterate lines
@@ -541,7 +599,7 @@ func main() {
 		}
 	*/
 
-	nimg = hough(nimg, img)
+	nimg = hough(w, img)
 
 	err = png.Encode(os.Stdout, nimg)
 	if err != nil {
