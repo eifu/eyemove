@@ -20,70 +20,100 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
-	var deg, rad float64
+	sin30 := math.Sin(30.0 * math.Pi / 180.0)
+	cos30 := math.Cos(30.0 * math.Pi / 180.0)
+	var deg, rad, sinX, cosX, sin30pX, cos30pX, rf float64
 	var c uint32
 	var x0, y0, x1, y1, tmp int
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
+	n := time.Now()
 	// tranform to 3d space
 	for _, p := range w {
 		for r := 0; r < rmax-MinEyeR; r++ {
-			for deg = 0; deg < 45; deg++ {
+			rf = float64(r + MinEyeR)
+			for deg = 0; deg < 30; deg++ {
 				rad = deg * math.Pi / 180.0
-				x1 = int(float64(r+MinEyeR) * math.Cos(rad))
-				y1 = int(float64(r+MinEyeR) * math.Sin(rad))
-				// first quadrant 0-45
-				x0 = p.X + x1
-				y0 = p.Y + y1
+				cosX, sinX = math.Cos(rad), math.Sin(rad)
+				cos30pX = cos30*cosX - sin30*sinX
+				sin30pX = sin30*cosX + sinX*cos30
+				// first quadrant 0-30
+				x0 = p.X + int(rf*cosX)
+				y0 = p.Y + int(rf*sinX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// first quadrant 46-90
-				x0 = p.X + y1
-				y0 = p.Y + x1
+				// first quadrant 30-60
+				x0 = p.X + int(rf*cos30pX)
+				y0 = p.Y + int(rf*sin30pX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// second quadrant 90-135
-				x0 = p.X - y1
-				y0 = p.Y + x1
+				// first quadrant 60-90
+				x0 = p.X + int(rf*sinX)
+				y0 = p.Y + int(rf*cosX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// second quadrant 136-180
-				x0 = p.X - x1
-				y0 = p.Y + y1
+				// second quadrant 90-120
+				x0 = p.X - int(rf*sinX)
+				y0 = p.Y + int(rf*cosX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// third quadrant 181-215
-				x0 = p.X - x1
-				y0 = p.Y - y1
+				// second quadrant 120-150
+				x0 = p.X - int(rf*cos30pX)
+				y0 = p.Y + int(rf*sin30pX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// third quadrant 226-275
-				x0 = p.X - y1
-				y0 = p.Y - x1
+				// second quadrant 150-180
+				x0 = p.X - int(rf*cosX)
+				y0 = p.Y + int(rf*sinX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// fourth quadrant 276-315
-				x0 = p.X + y1
-				y0 = p.Y - x1
+				// third quadrant 180-210
+				x0 = p.X - int(rf*cosX)
+				y0 = p.Y - int(rf*sinX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// fourth quadrant 316-359
-				x0 = p.X + x1
-				y0 = p.Y - y1
+				// third quadrant 210-240
+				x0 = p.X - int(rf*cos30pX)
+				y0 = p.Y - int(rf*sin30pX)
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// third quadrant 240-270
+				x0 = p.X - int(rf*sinX)
+				y0 = p.Y - int(rf*cosX)
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// fourth quadrant 270-300
+				x0 = p.X + int(rf*sinX)
+				y0 = p.Y - int(rf*cosX)
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// fourth quadrant 300-330
+				x0 = p.X + int(rf*cos30pX)
+				y0 = p.Y - int(rf*sin30pX)
+				if (image.Point{x0, y0}.In(rect)) {
+					acc[x0+y0*width+width*height*r] += 1
+				}
+				// fourth quadrant 330-360
+				x0 = p.X + int(rf*cosX)
+				y0 = p.Y - int(rf*sinX)
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 			}
 		}
 	}
+	log.Printf("  transform %v", time.Since(n))
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
 	maxl := make([]int, rmax-MinEyeR)
