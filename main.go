@@ -22,91 +22,98 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 
 	sin30 := math.Sin(30.0 * math.Pi / 180.0)
 	cos30 := math.Cos(30.0 * math.Pi / 180.0)
-	var deg, rad, sinX, cosX, sin30pX, cos30pX, rf float64
+	var rad, rf, sinX, cosX float64
 	var c uint32
-	var x0, y0, x1, y1, tmp int
+	var x0, y0, x1, y1, tmp, rfsinX, rfcosX int
+
+	rads := make([]float64, 30)
+	for i := 0; i < 30; i++ {
+		rads[i] = float64(i) * math.Pi / 180.0
+	}
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
 	n := time.Now()
 	// tranform to 3d space
-	for _, p := range w {
-		for r := 0; r < rmax-MinEyeR; r++ {
-			rf = float64(r + MinEyeR)
-			for deg = 0; deg < 30; deg++ {
-				rad = deg * math.Pi / 180.0
-				cosX, sinX = math.Cos(rad), math.Sin(rad)
-				cos30pX = cos30*cosX - sin30*sinX
-				sin30pX = sin30*cosX + sinX*cos30
+	for r := 0; r < rmax-MinEyeR; r++ {
+		rf = float64(r + MinEyeR)
+		for _, p := range w {
+			for _, rad = range rads {
+				sinX, cosX = math.Sin(rad), math.Cos(rad)
+				rfcosX, rfsinX = int(rf*cosX), int(rf*sinX)
+				// cos(30+x)
+				x1 = int(rf * (cos30*cosX - sin30*sinX))
+				// sin(30+x)
+				y1 = int(rf * (sin30*cosX + cosX*cos30))
 				// first quadrant 0-30
-				x0 = p.X + int(rf*cosX)
-				y0 = p.Y + int(rf*sinX)
+				x0 = p.X + rfcosX
+				y0 = p.Y + rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// first quadrant 30-60
-				x0 = p.X + int(rf*cos30pX)
-				y0 = p.Y + int(rf*sin30pX)
+				x0 = p.X + x1
+				y0 = p.Y + y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// first quadrant 60-90
-				x0 = p.X + int(rf*sinX)
-				y0 = p.Y + int(rf*cosX)
+				x0 = p.X + rfsinX
+				y0 = p.Y + rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// second quadrant 90-120
-				x0 = p.X - int(rf*sinX)
-				y0 = p.Y + int(rf*cosX)
+				x0 = p.X - rfsinX
+				y0 = p.Y + rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// second quadrant 120-150
-				x0 = p.X - int(rf*cos30pX)
-				y0 = p.Y + int(rf*sin30pX)
+				x0 = p.X - x1
+				y0 = p.Y + y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// second quadrant 150-180
-				x0 = p.X - int(rf*cosX)
-				y0 = p.Y + int(rf*sinX)
+				x0 = p.X - rfcosX
+				y0 = p.Y + rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// third quadrant 180-210
-				x0 = p.X - int(rf*cosX)
-				y0 = p.Y - int(rf*sinX)
+				x0 = p.X - rfcosX
+				y0 = p.Y - rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// third quadrant 210-240
-				x0 = p.X - int(rf*cos30pX)
-				y0 = p.Y - int(rf*sin30pX)
+				x0 = p.X - x1
+				y0 = p.Y - y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// third quadrant 240-270
-				x0 = p.X - int(rf*sinX)
-				y0 = p.Y - int(rf*cosX)
+				x0 = p.X - rfsinX
+				y0 = p.Y - rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// fourth quadrant 270-300
-				x0 = p.X + int(rf*sinX)
-				y0 = p.Y - int(rf*cosX)
+				x0 = p.X + rfsinX
+				y0 = p.Y - rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// fourth quadrant 300-330
-				x0 = p.X + int(rf*cos30pX)
-				y0 = p.Y - int(rf*sin30pX)
+				x0 = p.X + x1
+				y0 = p.Y - y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// fourth quadrant 330-360
-				x0 = p.X + int(rf*cosX)
-				y0 = p.Y - int(rf*sinX)
+				x0 = p.X + rfcosX
+				y0 = p.Y - rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
@@ -134,6 +141,8 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 		maxl[r] = tmp
 		cntl[r] = cnt
 	}
+	log.Print(maxl)
+	log.Print(cntl)
 
 	// candidates of canditates of radious
 	// i, i+1, i+2, i+3, i+4
@@ -153,47 +162,35 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 			// TODO: i or i+1 is arbitrary
 		}
 	}
-	// TODO: best 2 is arbitrary
-	// accm0, accm1: best 2 accumulation maximums
-	// cd0, cd1: best 2 candidates of radious
-	var cd0, cd1, accm0, accm1 int
-
-	for _, e := range cc {
-		if accm0 < maxl[e] {
-			tmp = accm0
-			accm0 = maxl[e]
-			accm1 = tmp
-			tmp = cd0
-			cd0 = e
-			cd1 = tmp
-		} else if accm1 < maxl[e] {
-			accm1 = maxl[e]
-			cd1 = e
-		}
-	}
-
-	// determine which one has more black pixels than the other
-	var acc0, acc1 uint32
-	x0, y0, x1, y1 = cntl[cd0].X, cntl[cd0].Y, cntl[cd1].X, cntl[cd1].Y
-	r0, r1 := (cd0+MinEyeR)*(cd0+MinEyeR), (cd1+MinEyeR)*(cd1+MinEyeR)
-
+	log.Print(cc)
+	accl := make([]uint32, len(cc))
+	pimg, _ = cutoffRGBA(pimg)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			if (x-x0)*(x-x0)+(y-y0)*(y-y0) < r0 {
-				c, _, _, _ = pimg.At(x, y).RGBA()
-				acc0 += c & 0xFF
-			}
-			if (x-x1)*(x-x1)+(y-y1)*(y-y1) < r1 {
-				c, _, _, _ = pimg.At(x, y).RGBA()
-				acc1 += c & 0xFF
+			c, _, _, _ = pimg.At(x, y).RGBA()
+			for i, r0 := range cc {
+				x0, y0 = cntl[r0].X, cntl[r0].Y
+				if (x-x0)*(x-x0)+(y-y0)*(y-y0) < (r0+MinEyeR)*(r0+MinEyeR) {
+					accl[i] += c & 0xFF
+				}
 			}
 		}
 	}
-	dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
-	if dens0 < dens1 {
-		return drawCircle(pimg, cntl[cd0], cd0+MinEyeR)
+	densl := make([]float64, len(cc))
+	// acc is accumulation of pixel value
+	for i, acc := range accl {
+		densl[i] = float64(acc) / (float64((cc[i]+MinEyeR)*(cc[i]+MinEyeR)) * math.Pi)
 	}
-	return drawCircle(pimg, cntl[cd1], cd1+MinEyeR)
+	black := 255.0
+	blacki := 0
+	for i, dens := range densl {
+		if dens < black {
+			black = dens
+			blacki = i
+		}
+	}
+	log.Print(densl)
+	return drawCircle(pimg, cntl[cc[blacki]], cc[blacki]+MinEyeR)
 }
 func drawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 	rect := img.Bounds()
@@ -578,7 +575,7 @@ func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 
 func main() {
 	start := time.Now()
-	file, err := os.Open("data/test2.jpg")
+	file, err := os.Open("data/test1.jpg")
 	defer file.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "main open file :%v\n", err)
