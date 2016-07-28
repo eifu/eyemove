@@ -164,7 +164,7 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	}
 	log.Print(cc)
 	accl := make([]uint32, len(cc))
-	pimg, _ = cutoffRGBA(pimg)
+
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			c, _, _, _ = pimg.At(x, y).RGBA()
