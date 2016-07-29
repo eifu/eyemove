@@ -22,91 +22,103 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 
 	sin30 := math.Sin(30.0 * math.Pi / 180.0)
 	cos30 := math.Cos(30.0 * math.Pi / 180.0)
-	var deg, rad, sinX, cosX, sin30pX, cos30pX, rf float64
+	var rad, rf float64
 	var c uint32
-	var x0, y0, x1, y1, tmp int
+	var x0, y0, x1, y1, tmp, rfsinX, rfcosX int
+
+	// trigo variable array
+	// cosX, sinX, cos(30+X), sin(30+X)
+	trigo := make([]float64, 120)
+	for i := 0; i < 30; i++ {
+		rad = float64(i) * math.Pi / 180.0
+		trigo[4*i] = math.Cos(rad)
+		trigo[4*i+1] = math.Sin(rad)
+		trigo[4*i+2] = cos30*trigo[4*i] - sin30*trigo[4*i+1]
+		trigo[4*i+3] = sin30*trigo[4*i] + trigo[4*i+1]*cos30
+	}
+
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
 	n := time.Now()
 	// tranform to 3d space
-	for _, p := range w {
-		for r := 0; r < rmax-MinEyeR; r++ {
-			rf = float64(r + MinEyeR)
-			for deg = 0; deg < 30; deg++ {
-				rad = deg * math.Pi / 180.0
-				cosX, sinX = math.Cos(rad), math.Sin(rad)
-				cos30pX = cos30*cosX - sin30*sinX
-				sin30pX = sin30*cosX + sinX*cos30
+	for r := 0; r < rmax-MinEyeR; r++ {
+		rf = float64(r + MinEyeR)
+		for i := 0; i < 30; i++ {
+			rfcosX = int(rf * trigo[4*i])
+			rfsinX = int(rf * trigo[4*i+1])
+			x1 = int(rf * trigo[4*i+2])
+			y1 = int(rf * trigo[4*i+3])
+			for _, p := range w {
 				// first quadrant 0-30
-				x0 = p.X + int(rf*cosX)
-				y0 = p.Y + int(rf*sinX)
+				x0 = p.X + rfcosX
+				y0 = p.Y + rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// first quadrant 30-60
-				x0 = p.X + int(rf*cos30pX)
-				y0 = p.Y + int(rf*sin30pX)
+				x0 = p.X + x1
+				y0 = p.Y + y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// first quadrant 60-90
-				x0 = p.X + int(rf*sinX)
-				y0 = p.Y + int(rf*cosX)
+				x0 = p.X + rfsinX
+				y0 = p.Y + rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// second quadrant 90-120
-				x0 = p.X - int(rf*sinX)
-				y0 = p.Y + int(rf*cosX)
+				x0 = p.X - rfsinX
+				y0 = p.Y + rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// second quadrant 120-150
-				x0 = p.X - int(rf*cos30pX)
-				y0 = p.Y + int(rf*sin30pX)
+				x0 = p.X - x1
+				y0 = p.Y + y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// second quadrant 150-180
-				x0 = p.X - int(rf*cosX)
-				y0 = p.Y + int(rf*sinX)
+				x0 = p.X - rfcosX
+				y0 = p.Y + rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// third quadrant 180-210
-				x0 = p.X - int(rf*cosX)
-				y0 = p.Y - int(rf*sinX)
+				x0 = p.X - rfcosX
+				y0 = p.Y - rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// third quadrant 210-240
-				x0 = p.X - int(rf*cos30pX)
-				y0 = p.Y - int(rf*sin30pX)
+				x0 = p.X - x1
+				y0 = p.Y - y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// third quadrant 240-270
-				x0 = p.X - int(rf*sinX)
-				y0 = p.Y - int(rf*cosX)
+				x0 = p.X - rfsinX
+				y0 = p.Y - rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// fourth quadrant 270-300
-				x0 = p.X + int(rf*sinX)
-				y0 = p.Y - int(rf*cosX)
+				x0 = p.X + rfsinX
+				y0 = p.Y - rfcosX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// fourth quadrant 300-330
-				x0 = p.X + int(rf*cos30pX)
-				y0 = p.Y - int(rf*sin30pX)
+				x0 = p.X + x1
+				y0 = p.Y - y1
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
 				// fourth quadrant 330-360
-				x0 = p.X + int(rf*cosX)
-				y0 = p.Y - int(rf*sinX)
+				x0 = p.X + rfcosX
+				y0 = p.Y - rfsinX
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
@@ -140,13 +152,13 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	// \-/  \-/  \+/  \+/
 	var cc []int
 	for i := 0; i < len(maxl)-4; i++ {
-		if maxl[i]-maxl[i+1] > 0 {
+		if maxl[i+1]-maxl[i] < 0 {
 			continue
-		} else if maxl[i+1]-maxl[i+2] > 0 {
+		} else if maxl[i+2]-maxl[i+1] < 0 {
 			i += 1
-		} else if maxl[i+2]-maxl[i+3] < 0 {
+		} else if maxl[i+3]-maxl[i+2] > 0 {
 			continue
-		} else if maxl[i+3]-maxl[i+4] < 0 {
+		} else if maxl[i+4]-maxl[i+3] > 0 {
 			i += 2
 		} else {
 			cc = append(cc, i+2)
