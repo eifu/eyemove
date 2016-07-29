@@ -147,9 +147,9 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 		cntl[r] = cnt
 	}
 
-	// candidates of canditates of radious
+	// second derivative of radious candidates
 	// i, i+1, i+2, i+3, i+4
-	// \-/  \-/  \+/  \+/
+	// \+/  \+/  \-/  \-/
 	var cc []int
 	for i := 0; i < len(maxl)-4; i++ {
 		if maxl[i+1]-maxl[i] < 0 {
