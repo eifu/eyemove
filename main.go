@@ -621,26 +621,7 @@ func main() {
 	// binary conversion
 	w := binary(nimg)
 
-	/*
-		// iterate lines
-		rowmaxlist, rowminlist := row_iterate(nimg, ave)
-		colmaxlist, colminlist := col_iterate(nimg, ave)
-
-		// put colors to image every column
-		for x := 0; x < xmax; x++ {
-			colmaxy, colminy := colmaxlist[x], colminlist[x]
-			nimg.Set(x, colmaxy, color.RGBA{0x3F, 0xBF, 0x3F, 0xFF})
-			nimg.Set(x, colminy, color.RGBA{0x19, 0x4C, 0x19, 0xFF})
-		}
-
-		// put colors to image every row
-		for y := 0; y < ymax; y++ {
-			rowmaxx, rowminx := rowmaxlist[y], rowminlist[y]
-			nimg.Set(rowmaxx, y, color.RGBA{0x4B, 0x4B, 0xD1, 0xFF})
-			nimg.Set(rowminx, y, color.RGBA{0x1A, 0x1A, 0x65, 0xFF})
-		}
-	*/
-
+	// hough transform
 	nimg = hough(w, img)
 
 	err = png.Encode(os.Stdout, nimg)
