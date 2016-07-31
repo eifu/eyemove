@@ -125,7 +125,7 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 			}
 		}
 	}
-	log.Printf("  transform %v", time.Since(n))
+	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
 	maxl := make([]int, rmax-MinEyeR)
@@ -612,7 +612,6 @@ func main() {
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-
 	nimg = sb(nimg, 1)
 
 	// prewitt algorithm
@@ -624,10 +623,9 @@ func main() {
 	// hough transform
 	nimg = hough(w, img)
 
-	err = png.Encode(os.Stdout, nimg)
-	if err != nil {
+	if err = png.Encode(os.Stdout, nimg); err != nil {
 		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
 		os.Exit(1)
 	}
-	log.Printf("Process took %s", time.Since(start))
+	log.Printf("Process took %.2fs total\n", time.Since(start).Seconds())
 }
