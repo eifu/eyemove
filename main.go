@@ -372,12 +372,12 @@ func conv1d2(a []uint32) uint8 {
 	return uint8(f0)
 }
 
-func binary(img image.Image) []image.Point {
+func binary(img image.Image) (*image.RGBA, []image.Point) {
 	log.Print("start settling black or white")
 	rect := img.Bounds()
 	width, height := rect.Max.X, rect.Max.Y
 	cl := make([]uint32, width*height)
-
+	nimg := image.NewRGBA(rect)
 	var acc, ave, c0 uint32
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -394,10 +394,13 @@ func binary(img image.Image) []image.Point {
 		for x := 0; x < width; x++ {
 			if cl[x+y*width] > ave {
 				w = append(w, image.Point{x, y})
+				nimg.Set(x, y, color.Gray{0xFF})
+			} else {
+				nimg.Set(x, y, color.Gray{0x0})
 			}
 		}
 	}
-	return w
+	return nimg, w
 }
 
 func cutoffRGBA(img image.Image) (*image.RGBA, uint32) {
@@ -590,7 +593,7 @@ func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 
 func main() {
 	start := time.Now()
-	file, err := os.Open("data/test2.jpg")
+	file, err := os.Open("data/test4.jpg")
 	defer file.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "main open file :%v\n", err)
@@ -612,13 +615,13 @@ func main() {
 	//	img = expandRGBA(img)
 
 	// sobel algorithm for edging
-	nimg = sb(nimg, 1)
+	nimg = sb(nimg, 2)
 
 	// prewitt algorithm
 	//	img = pw(img)
 
 	// binary conversion
-	w := binary(nimg)
+	_, w := binary(nimg)
 
 	// hough transform
 	nimg = hough(w, img)
