@@ -16,13 +16,72 @@ const (
 	MinEyeR = 10
 )
 
+func process1(out chan<- [3]int, rmax int, trigo []float64) {
+	for r := 0; r < rmax-MinEyeR; r++ {
+		rf := float64(r + MinEyeR)
+		for deg := 0; deg < 45; deg++ {
+			rfcosX := int(rf * trigo[2*deg])
+			rfsinX := int(rf * trigo[2*deg+1])
+			out <- [3]int{rfcosX, rfsinX, r}
+		}
+	}
+	close(out)
+}
+
+func process2(out chan<- [][3]int, in <-chan [3]int, w []image.Point, rect image.Rectangle) {
+	for v := range in {
+		rfcosX := v[0]
+		rfsinX := v[1]
+		radius := v[2]
+		for _, p := range w {
+
+			p_news := make([][3]int, 0, 8)
+
+			if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
+			}
+			if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
+			}
+			if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
+			}
+			if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
+			}
+			if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
+			}
+			if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
+			}
+			if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
+			}
+			if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
+			}
+			out <- p_news
+		}
+	}
+	close(out)
+}
+
+func process3(in <-chan [][3]int, acc []int, width, height int) {
+	for v := range in {
+		for _, p_new := range v {
+			acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
+		}
+	}
+}
+
 func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
-	var rad, rf float64
+	var rad float64
 	var c uint32
-	var x0, x1, tmp, rfsinX, rfcosX int
+	var x0, x1, tmp int
 	var y0, y1 int
 	// trigo variable array
 	// cosX, sinX
@@ -38,72 +97,13 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	acc := make([]int, width*height*(rmax-MinEyeR))
 	n := time.Now()
 
-	var p image.Point
-	var p_news [][3]int
-	var p_new [3]int
-
 	// tranform to 3d space
 
 	deg_chan := make(chan [3]int)
 	p_chan := make(chan [][3]int)
-	go func(out chan<- [3]int) {
-		for r := 0; r < rmax-MinEyeR; r++ {
-			rf = float64(r + MinEyeR)
-			for deg := 0; deg < 45; deg++ {
-				rfcosX = int(rf * trigo[2*deg])
-				rfsinX = int(rf * trigo[2*deg+1])
-				out <- [3]int{rfcosX, rfsinX, r}
-			}
-		}
-		close(out)
-	}(deg_chan)
-
-	go func(out chan<- [][3]int, in <-chan [3]int) {
-		for v := range in {
-			rfcosX = v[0]
-			rfsinX = v[1]
-			radius := v[2]
-			for _, p = range w {
-
-				p_news = make([][3]int, 0, 8)
-
-				if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
-				}
-				if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
-				}
-				if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
-				}
-				if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
-				}
-				if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
-				}
-				if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
-				}
-				if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
-				}
-				if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
-					p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
-				}
-				out <- p_news
-			}
-		}
-		close(out)
-	}(p_chan, deg_chan)
-
-	func(in <-chan [][3]int) {
-		for v := range in {
-			for _, p_new = range v {
-				acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
-			}
-		}
-	}(p_chan)
+	go process1(deg_chan, rmax, trigo)
+	go process2(p_chan, deg_chan, w, rect)
+	process3(p_chan, acc, width, height)
 
 	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
