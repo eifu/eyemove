@@ -39,8 +39,7 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	n := time.Now()
 
 	var p image.Point
-	var p_chan chan image.Point
-	var p_new image.Point
+
 	var p_news []image.Point
 
 	// tranform to 3d space
@@ -52,23 +51,32 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 
 			for _, p = range w {
 				p_news = make([]image.Point, 0, 8)
-				p_chan = make(chan image.Point, 8)
 
-				go func() { p_chan <- image.Point{p.X + rfcosX, p.Y + rfsinX} }()
-				go func() { p_chan <- image.Point{p.X + rfsinX, p.Y + rfcosX} }()
-				go func() { p_chan <- image.Point{p.X - rfsinX, p.Y + rfcosX} }()
-				go func() { p_chan <- image.Point{p.X - rfcosX, p.Y + rfsinX} }()
-				go func() { p_chan <- image.Point{p.X - rfcosX, p.Y - rfsinX} }()
-				go func() { p_chan <- image.Point{p.X - rfsinX, p.Y - rfcosX} }()
-				go func() { p_chan <- image.Point{p.X + rfsinX, p.Y - rfcosX} }()
-				go func() { p_chan <- image.Point{p.X + rfcosX, p.Y - rfsinX} }()
-
-				for i := 0; i < 8; i++ {
-					p_new = <-p_chan
-					if p_new.In(rect) {
-						p_news = append(p_news, p_new)
-					}
+				if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X + rfcosX, p.Y + rfsinX})
 				}
+				if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X + rfsinX, p.Y + rfcosX})
+				}
+				if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X - rfsinX, p.Y + rfcosX})
+				}
+				if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X - rfcosX, p.Y + rfsinX})
+				}
+				if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X - rfcosX, p.Y - rfsinX})
+				}
+				if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X - rfsinX, p.Y - rfcosX})
+				}
+				if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X + rfsinX, p.Y - rfcosX})
+				}
+				if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
+					p_news = append(p_news, image.Point{p.X + rfcosX, p.Y - rfsinX})
+				}
+
 				for _, p = range p_news {
 					acc[p.X+p.Y*width+width*height*r] += 1
 				}
