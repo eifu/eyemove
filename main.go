@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -39,9 +40,9 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	n := time.Now()
 
 	var p image.Point
-
+	var p_chan chan []image.Point
 	var p_news []image.Point
-
+	var wg sync.WaitGroup
 	// tranform to 3d space
 	for r := 0; r < rmax-MinEyeR; r++ {
 		rf = float64(r + MinEyeR)
@@ -50,38 +51,44 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 			rfsinX = int(rf * trigo[2*i+1])
 
 			for _, p = range w {
-				p_news = make([]image.Point, 0, 8)
+				wg.Add(1)
+				p_chan = make(chan []image.Point)
+				go func() {
+					p_news = make([]image.Point, 0, 8)
 
-				if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X + rfcosX, p.Y + rfsinX})
-				}
-				if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X + rfsinX, p.Y + rfcosX})
-				}
-				if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X - rfsinX, p.Y + rfcosX})
-				}
-				if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X - rfcosX, p.Y + rfsinX})
-				}
-				if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X - rfcosX, p.Y - rfsinX})
-				}
-				if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X - rfsinX, p.Y - rfcosX})
-				}
-				if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X + rfsinX, p.Y - rfcosX})
-				}
-				if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
-					p_news = append(p_news, image.Point{p.X + rfcosX, p.Y - rfsinX})
-				}
+					if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X + rfcosX, p.Y + rfsinX})
+					}
+					if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X + rfsinX, p.Y + rfcosX})
+					}
+					if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X - rfsinX, p.Y + rfcosX})
+					}
+					if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X - rfcosX, p.Y + rfsinX})
+					}
+					if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X - rfcosX, p.Y - rfsinX})
+					}
+					if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X - rfsinX, p.Y - rfcosX})
+					}
+					if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X + rfsinX, p.Y - rfcosX})
+					}
+					if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
+						p_news = append(p_news, image.Point{p.X + rfcosX, p.Y - rfsinX})
+					}
+					p_chan <- p_news
+					wg.Done()
+				}()
 
-				for _, p = range p_news {
+				for _, p = range <-p_chan {
 					acc[p.X+p.Y*width+width*height*r] += 1
 				}
 			}
-
+			wg.Wait()
 		}
 	}
 	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
