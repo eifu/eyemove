@@ -38,8 +38,9 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	acc := make([]int, width*height*(rmax-MinEyeR))
 	n := time.Now()
 
-	var p, p_new image.Point
+	var p image.Point
 	var p_chan chan image.Point
+	var p_new image.Point
 	// tranform to 3d space
 	for r := 0; r < rmax-MinEyeR; r++ {
 		rf = float64(r + MinEyeR)
@@ -48,16 +49,16 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 			rfsinX = int(rf * trigo[2*i+1])
 
 			for _, p = range w {
-				p_chan = make(chan image.Point)
+				p_chan = make(chan image.Point, 8)
 
-				go func() { p_chan <- image.Point{p.X + rfcosX, p.Y + rfcosX} }()
-				go func() { p_chan <- image.Point{p.X + rfsinX, p.Y + rfsinX} }()
-				go func() { p_chan <- image.Point{p.X - rfsinX, p.Y + rfsinX} }()
-				go func() { p_chan <- image.Point{p.X - rfcosX, p.Y + rfcosX} }()
-				go func() { p_chan <- image.Point{p.X - rfcosX, p.Y - rfcosX} }()
-				go func() { p_chan <- image.Point{p.X - rfsinX, p.Y - rfsinX} }()
-				go func() { p_chan <- image.Point{p.X + rfsinX, p.Y - rfsinX} }()
-				go func() { p_chan <- image.Point{p.X + rfcosX, p.Y - rfcosX} }()
+				go func() { p_chan <- image.Point{p.X + rfcosX, p.Y + rfsinX} }()
+				go func() { p_chan <- image.Point{p.X + rfsinX, p.Y + rfcosX} }()
+				go func() { p_chan <- image.Point{p.X - rfsinX, p.Y + rfcosX} }()
+				go func() { p_chan <- image.Point{p.X - rfcosX, p.Y + rfsinX} }()
+				go func() { p_chan <- image.Point{p.X - rfcosX, p.Y - rfsinX} }()
+				go func() { p_chan <- image.Point{p.X - rfsinX, p.Y - rfcosX} }()
+				go func() { p_chan <- image.Point{p.X + rfsinX, p.Y - rfcosX} }()
+				go func() { p_chan <- image.Point{p.X + rfcosX, p.Y - rfsinX} }()
 
 				for i := 0; i < 8; i++ {
 					p_new = <-p_chan
