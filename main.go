@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -40,56 +39,69 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	n := time.Now()
 
 	var p image.Point
-	var p_chan chan []image.Point
-	var p_news []image.Point
-	var wg sync.WaitGroup
+	var p_news [][3]int
+	var p_new [3]int
+
 	// tranform to 3d space
 	for r := 0; r < rmax-MinEyeR; r++ {
 		rf = float64(r + MinEyeR)
-		for i := 0; i < 45; i++ {
-			rfcosX = int(rf * trigo[2*i])
-			rfsinX = int(rf * trigo[2*i+1])
+		deg_chan := make(chan [3]int)
+		p_chan := make(chan [][3]int)
+		go func(out chan<- [3]int) {
+			for deg := 0; deg < 45; deg++ {
+				rfcosX_ := int(rf * trigo[2*deg])
+				rfsinX_ := int(rf * trigo[2*deg+1])
+				out <- [3]int{rfcosX_, rfsinX_, r}
+			}
+			close(out)
+		}(deg_chan)
 
-			for _, p = range w {
-				wg.Add(1)
-				p_chan = make(chan []image.Point)
-				go func() {
-					p_news = make([]image.Point, 0, 8)
+		go func(out chan<- [][3]int, in <-chan [3]int) {
+			for v := range in {
+				rfcosX = v[0]
+				rfsinX = v[1]
+				radius := v[2]
+				for _, p = range w {
+
+					p_news = make([][3]int, 0, 8)
 
 					if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X + rfcosX, p.Y + rfsinX})
+						p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
 					}
 					if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X + rfsinX, p.Y + rfcosX})
+						p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
 					}
 					if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X - rfsinX, p.Y + rfcosX})
+						p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
 					}
 					if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X - rfcosX, p.Y + rfsinX})
+						p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
 					}
 					if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X - rfcosX, p.Y - rfsinX})
+						p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
 					}
 					if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X - rfsinX, p.Y - rfcosX})
+						p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
 					}
 					if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X + rfsinX, p.Y - rfcosX})
+						p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
 					}
 					if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
-						p_news = append(p_news, image.Point{p.X + rfcosX, p.Y - rfsinX})
+						p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
 					}
-					p_chan <- p_news
-					wg.Done()
-				}()
-
-				for _, p = range <-p_chan {
-					acc[p.X+p.Y*width+width*height*r] += 1
+					out <- p_news
 				}
 			}
-			wg.Wait()
-		}
+			close(out)
+		}(p_chan, deg_chan)
+
+		go func(in <-chan [][3]int) {
+			for v := range in {
+				for _, p_new = range v {
+					acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
+				}
+			}
+		}(p_chan)
 	}
 	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
