@@ -20,109 +20,79 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
-	sin30 := math.Sin(30.0 * math.Pi / 180.0)
-	cos30 := math.Cos(30.0 * math.Pi / 180.0)
 	var rad, rf float64
 	var c uint32
-	var x0, y0, x1, y1, tmp, rfsinX, rfcosX int
-
+	var x0, x1, x2, x3, tmp, rfsinX, rfcosX int
+	var y0, y1, y2, y3 int
 	// trigo variable array
-	// cosX, sinX, cos(30+X), sin(30+X)
-	trigo := make([]float64, 120)
-	for i := 0; i < 30; i++ {
+	// cosX, sinX
+	trigo := make([]float64, 90)
+	for i := 0; i < 45; i++ {
 		rad = float64(i) * math.Pi / 180.0
-		trigo[4*i] = math.Cos(rad)
-		trigo[4*i+1] = math.Sin(rad)
-		trigo[4*i+2] = cos30*trigo[4*i] - sin30*trigo[4*i+1]
-		trigo[4*i+3] = sin30*trigo[4*i] + trigo[4*i+1]*cos30
+		trigo[2*i] = math.Cos(rad)
+		trigo[2*i+1] = math.Sin(rad)
 	}
 
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
 	n := time.Now()
+
+	var p image.Point
 	// tranform to 3d space
 	for r := 0; r < rmax-MinEyeR; r++ {
 		rf = float64(r + MinEyeR)
-		for i := 0; i < 30; i++ {
-			rfcosX = int(rf * trigo[4*i])
-			rfsinX = int(rf * trigo[4*i+1])
-			x1 = int(rf * trigo[4*i+2])
-			y1 = int(rf * trigo[4*i+3])
-			for _, p := range w {
-				// first quadrant 0-30
+		for i := 0; i < 45; i++ {
+			rfcosX = int(rf * trigo[2*i])
+			rfsinX = int(rf * trigo[2*i+1])
+
+			for _, p = range w {
+
 				x0 = p.X + rfcosX
+				x1 = p.X + rfsinX
+				x2 = p.X - rfsinX
+				x3 = p.X - rfcosX
+
 				y0 = p.Y + rfsinX
+				y1 = p.Y + rfcosX
+				y2 = p.Y - rfcosX
+				y3 = p.Y - rfsinX
+
+				// first quadrant 0-45
 				if (image.Point{x0, y0}.In(rect)) {
 					acc[x0+y0*width+width*height*r] += 1
 				}
-				// first quadrant 30-60
-				x0 = p.X + x1
-				y0 = p.Y + y1
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// first quadrant 45-90
+				if (image.Point{x1, y1}.In(rect)) {
+					acc[x1+y1*width+width*height*r] += 1
 				}
-				// first quadrant 60-90
-				x0 = p.X + rfsinX
-				y0 = p.Y + rfcosX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// second quadrant 90-135
+				if (image.Point{x2, y1}.In(rect)) {
+					acc[x2+y1*width+width*height*r] += 1
 				}
-				// second quadrant 90-120
-				x0 = p.X - rfsinX
-				y0 = p.Y + rfcosX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// second quadrant 135-180
+				if (image.Point{x3, y0}.In(rect)) {
+					acc[x3+y0*width+width*height*r] += 1
 				}
-				// second quadrant 120-150
-				x0 = p.X - x1
-				y0 = p.Y + y1
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// third quadrant 180-225
+				if (image.Point{x3, y3}.In(rect)) {
+					acc[x3+y3*width+width*height*r] += 1
 				}
-				// second quadrant 150-180
-				x0 = p.X - rfcosX
-				y0 = p.Y + rfsinX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// third quadrant 225-270
+				if (image.Point{x2, y2}.In(rect)) {
+					acc[x2+y2*width+width*height*r] += 1
 				}
-				// third quadrant 180-210
-				x0 = p.X - rfcosX
-				y0 = p.Y - rfsinX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// fourth quadrant 270-315
+				if (image.Point{x1, y2}.In(rect)) {
+					acc[x1+y2*width+width*height*r] += 1
 				}
-				// third quadrant 210-240
-				x0 = p.X - x1
-				y0 = p.Y - y1
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
+				// fourth quadrant 315-360
+				if (image.Point{x0, y3}.In(rect)) {
+					acc[x0+y3*width+width*height*r] += 1
 				}
-				// third quadrant 240-270
-				x0 = p.X - rfsinX
-				y0 = p.Y - rfcosX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
-				}
-				// fourth quadrant 270-300
-				x0 = p.X + rfsinX
-				y0 = p.Y - rfcosX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
-				}
-				// fourth quadrant 300-330
-				x0 = p.X + x1
-				y0 = p.Y - y1
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
-				}
-				// fourth quadrant 330-360
-				x0 = p.X + rfcosX
-				y0 = p.Y - rfsinX
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
-				}
+
 			}
+
 		}
 	}
 	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
