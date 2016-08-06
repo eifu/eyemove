@@ -97,7 +97,7 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 		close(out)
 	}(p_chan, deg_chan)
 
-	go func(in <-chan [][3]int) {
+	func(in <-chan [][3]int) {
 		for v := range in {
 			for _, p_new = range v {
 				acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
