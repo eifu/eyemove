@@ -43,66 +43,68 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	var p_new [3]int
 
 	// tranform to 3d space
-	for r := 0; r < rmax-MinEyeR; r++ {
-		rf = float64(r + MinEyeR)
-		deg_chan := make(chan [3]int)
-		p_chan := make(chan [][3]int)
-		go func(out chan<- [3]int) {
+
+	deg_chan := make(chan [3]int)
+	p_chan := make(chan [][3]int)
+	go func(out chan<- [3]int) {
+		for r := 0; r < rmax-MinEyeR; r++ {
+			rf = float64(r + MinEyeR)
 			for deg := 0; deg < 45; deg++ {
-				rfcosX_ := int(rf * trigo[2*deg])
-				rfsinX_ := int(rf * trigo[2*deg+1])
-				out <- [3]int{rfcosX_, rfsinX_, r}
+				rfcosX = int(rf * trigo[2*deg])
+				rfsinX = int(rf * trigo[2*deg+1])
+				out <- [3]int{rfcosX, rfsinX, r}
 			}
-			close(out)
-		}(deg_chan)
+		}
+		close(out)
+	}(deg_chan)
 
-		go func(out chan<- [][3]int, in <-chan [3]int) {
-			for v := range in {
-				rfcosX = v[0]
-				rfsinX = v[1]
-				radius := v[2]
-				for _, p = range w {
+	go func(out chan<- [][3]int, in <-chan [3]int) {
+		for v := range in {
+			rfcosX = v[0]
+			rfsinX = v[1]
+			radius := v[2]
+			for _, p = range w {
 
-					p_news = make([][3]int, 0, 8)
+				p_news = make([][3]int, 0, 8)
 
-					if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
-					}
-					if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
-					}
-					if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
-					}
-					if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
-					}
-					if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
-					}
-					if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
-					}
-					if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
-					}
-					if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
-						p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
-					}
-					out <- p_news
+				if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
 				}
-			}
-			close(out)
-		}(p_chan, deg_chan)
-
-		go func(in <-chan [][3]int) {
-			for v := range in {
-				for _, p_new = range v {
-					acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
+				if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
 				}
+				if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
+				}
+				if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
+				}
+				if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
+				}
+				if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
+				}
+				if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
+				}
+				if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
+					p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
+				}
+				out <- p_news
 			}
-		}(p_chan)
-	}
+		}
+		close(out)
+	}(p_chan, deg_chan)
+
+	go func(in <-chan [][3]int) {
+		for v := range in {
+			for _, p_new = range v {
+				acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
+			}
+		}
+	}(p_chan)
+
 	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
