@@ -75,7 +75,7 @@ func process3(in <-chan [][3]int, acc []int, width, height int) {
 	}
 }
 
-func hough(w []image.Point, pimg image.Image) *image.RGBA {
+func hough2(w []image.Point, pimg image.Image) *image.RGBA {
 	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
@@ -125,8 +125,8 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 		maxl[r] = tmp
 		cntl[r] = cnt
 	}
-	log.Println(maxl)
-	log.Println(cntl)
+	log.Println("maxl: ", maxl)
+	log.Println("cntl: ", cntl)
 
 	// second derivative of radious candidates
 	// i, i+1, i+2, i+3, i+4
@@ -146,6 +146,7 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 			// TODO: i or i+1 is arbitrary
 		}
 	}
+	log.Println("cc: ", cc)
 	// TODO: best 2 is arbitrary
 	// accm0, accm1: best 2 accumulation maximums
 	// cd0, cd1: best 2 candidates of radious
@@ -605,7 +606,7 @@ func main() {
 	_, w := binary(nimg)
 
 	// hough transform
-	nimg = hough(w, img)
+	nimg = hough2(w, img)
 
 	if err = png.Encode(os.Stdout, nimg); err != nil {
 		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
