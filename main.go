@@ -16,14 +16,73 @@ const (
 	MinEyeR = 10
 )
 
-func hough(w []image.Point, pimg image.Image) *image.RGBA {
+func process1(out chan<- [3]int, rmax int, trigo []float64) {
+	for r := 0; r < rmax-MinEyeR; r++ {
+		rf := float64(r + MinEyeR)
+		for deg := 0; deg < 45; deg++ {
+			rfcosX := int(rf * trigo[2*deg])
+			rfsinX := int(rf * trigo[2*deg+1])
+			out <- [3]int{rfcosX, rfsinX, r}
+		}
+	}
+	close(out)
+}
+
+func process2(out chan<- [][3]int, in <-chan [3]int, w []image.Point, rect image.Rectangle) {
+	for v := range in {
+		rfcosX := v[0]
+		rfsinX := v[1]
+		radius := v[2]
+		for _, p := range w {
+
+			p_news := make([][3]int, 0, 8)
+
+			if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
+			}
+			if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
+			}
+			if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
+			}
+			if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
+			}
+			if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
+			}
+			if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
+			}
+			if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
+			}
+			if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
+				p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
+			}
+			out <- p_news
+		}
+	}
+	close(out)
+}
+
+func process3(in <-chan [][3]int, acc []int, width, height int) {
+	for v := range in {
+		for _, p_new := range v {
+			acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
+		}
+	}
+}
+
+func hough2(w []image.Point, pimg image.Image) *image.RGBA {
 	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
-	var rad, rf float64
+	var rad float64
 	var c uint32
-	var x0, x1, x2, x3, tmp, rfsinX, rfcosX int
-	var y0, y1, y2, y3 int
+	var x0, x1, tmp int
+	var y0, y1 int
 	// trigo variable array
 	// cosX, sinX
 	trigo := make([]float64, 90)
@@ -38,70 +97,20 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	acc := make([]int, width*height*(rmax-MinEyeR))
 	n := time.Now()
 
-	var p image.Point
 	// tranform to 3d space
-	for r := 0; r < rmax-MinEyeR; r++ {
-		rf = float64(r + MinEyeR)
-		for i := 0; i < 45; i++ {
-			rfcosX = int(rf * trigo[2*i])
-			rfsinX = int(rf * trigo[2*i+1])
 
-			for _, p = range w {
+	deg_chan := make(chan [3]int)
+	p_chan := make(chan [][3]int)
+	go process1(deg_chan, rmax, trigo)
+	go process2(p_chan, deg_chan, w, rect)
+	process3(p_chan, acc, width, height)
 
-				x0 = p.X + rfcosX
-				x1 = p.X + rfsinX
-				x2 = p.X - rfsinX
-				x3 = p.X - rfcosX
-
-				y0 = p.Y + rfsinX
-				y1 = p.Y + rfcosX
-				y2 = p.Y - rfcosX
-				y3 = p.Y - rfsinX
-
-				// first quadrant 0-45
-				if (image.Point{x0, y0}.In(rect)) {
-					acc[x0+y0*width+width*height*r] += 1
-				}
-				// first quadrant 45-90
-				if (image.Point{x1, y1}.In(rect)) {
-					acc[x1+y1*width+width*height*r] += 1
-				}
-				// second quadrant 90-135
-				if (image.Point{x2, y1}.In(rect)) {
-					acc[x2+y1*width+width*height*r] += 1
-				}
-				// second quadrant 135-180
-				if (image.Point{x3, y0}.In(rect)) {
-					acc[x3+y0*width+width*height*r] += 1
-				}
-				// third quadrant 180-225
-				if (image.Point{x3, y3}.In(rect)) {
-					acc[x3+y3*width+width*height*r] += 1
-				}
-				// third quadrant 225-270
-				if (image.Point{x2, y2}.In(rect)) {
-					acc[x2+y2*width+width*height*r] += 1
-				}
-				// fourth quadrant 270-315
-				if (image.Point{x1, y2}.In(rect)) {
-					acc[x1+y2*width+width*height*r] += 1
-				}
-				// fourth quadrant 315-360
-				if (image.Point{x0, y3}.In(rect)) {
-					acc[x0+y3*width+width*height*r] += 1
-				}
-
-			}
-
-		}
-	}
 	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
 	maxl := make([]int, rmax-MinEyeR)
 	// cntlist store center Point that is maximum acc
 	cntl := make([]image.Point, rmax-MinEyeR)
-
 	var cnt image.Point
 	for r := 0; r < rmax-MinEyeR; r++ {
 		tmp = 0
@@ -118,6 +127,7 @@ func hough(w []image.Point, pimg image.Image) *image.RGBA {
 	}
 	log.Println("maxl: ", maxl)
 	log.Println("cntl: ", cntl)
+
 	// second derivative of radious candidates
 	// i, i+1, i+2, i+3, i+4
 	// \+/  \+/  \-/  \-/
@@ -596,7 +606,7 @@ func main() {
 	_, w := binary(nimg)
 
 	// hough transform
-	nimg = hough(w, img)
+	nimg = hough2(w, img)
 
 	if err = png.Encode(os.Stdout, nimg); err != nil {
 		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
