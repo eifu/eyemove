@@ -2,7 +2,6 @@ package main
 
 import (
 	"./manaco"
-	"fmt"
 	"image"
 	"image/png"
 	"log"
@@ -15,12 +14,12 @@ func main() {
 	file, err := os.Open("data/test2.jpg")
 	defer file.Close()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "main open file :%v\n", err)
+		log.Printf("main open file :%v\n", err)
 		os.Exit(1)
 	}
 	img, _, err := image.Decode(file)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
+		log.Printf("main read file :%v\n", err)
 		os.Exit(1)
 	}
 
@@ -28,14 +27,14 @@ func main() {
 
 	nimg, _ = manaco.CutoffRGBA(nimg)
 
-	nimg = manaco.Sb(nimg, 2)
+	nimg = manaco.Sb(nimg, 1)
 
 	_, w := manaco.Binary(nimg)
 
 	nimg = manaco.Hough(w, img)
 
 	if err := png.Encode(os.Stdout, nimg); err != nil {
-		fmt.Fprintf(os.Stderr, "main write file :%v\n", err)
+		log.Printf("main write file :%v\n", err)
 		os.Exit(1)
 	}
 	log.Printf("Process took %.3fs total\n", time.Since(start).Seconds())
