@@ -1,13 +1,11 @@
 package manaco
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	_ "image/jpeg"
 	"log"
 	"math"
-	"os"
 	"time"
 )
 
@@ -266,7 +264,7 @@ func Hough(w []image.Point, pimg image.Image) *image.RGBA {
 
 		}
 	}
-	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
+	log.Printf("  transform takes %.3fs \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
 	maxl := make([]int, rmax-MinEyeR)
@@ -403,7 +401,7 @@ func DrawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 	return nimg
 }
 
-func G_smoothing(img image.Image) *image.RGBA {
+func GaussianFilter(img image.Image) *image.RGBA {
 	log.Print("start gaussian smoothing")
 	rect := img.Bounds()
 	nimg1 := image.NewRGBA(rect)
@@ -502,8 +500,7 @@ func conv1d(c0, c1, c2, c3, c4, c5, c6 uint32) uint8 {
 
 func conv1d2(a []uint32) uint8 {
 	if len(a) != 7 {
-		fmt.Fprintf(os.Stderr, "conv1d2: error invalid length %v\n", a)
-		os.Exit(1)
+		log.Fatalf("conv1d2: error invalid length %v\n", a)
 	}
 	f0 := float64(a[0]&0xFF) * 0.006
 	f0 += float64(a[1]&0xFF) * 0.061
@@ -733,47 +730,3 @@ func col_iterate(img image.Image, ave uint32) ([]int, []int) {
 	}
 	return maxlist, minlist
 }
-
-/*
-func main() {
-	start := time.Now()
-	file, err := os.Open("data/test4.jpg")
-	defer file.Close()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "main open file :%v\n", err)
-		os.Exit(1)
-	}
-
-	img, _, err := image.Decode(file)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
-		os.Exit(1)
-	}
-	// gaussian smoothing function
-	nimg := G_smoothing(img)
-
-	// cut off pixels below the average color
-	nimg, _ = CutoffRGBA(nimg)
-
-	// settle it black(0x00) and white(0xFF)
-	//	img = expandRGBA(img)
-
-	// sobel algorithm for edging
-	nimg = Sb(nimg, 2)
-
-	// prewitt algorithm
-	//	img = Pw(img)
-
-	// binary conversion
-	_, w := Binary(nimg)
-
-	// hough transform
-	nimg = Hough(w, img)
-
-	if err = png.Encode(os.Stdout, nimg); err != nil {
-		fmt.Fprintf(os.Stderr, "main read file :%v\n", err)
-		os.Exit(1)
-	}
-	log.Printf("Process took %.2fs total\n", time.Since(start).Seconds())
-}
-*/
