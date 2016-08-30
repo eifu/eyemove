@@ -13,25 +13,23 @@ import (
 func main() {
 	flag.Parse()
 	root := flag.Arg(0)
-	err := filepath.Walk(root,
-		func(path string, info os.FileInfo, err error) error {
-			if info.IsDir() {
-				return nil
-			}
-			rel, err := filepath.Rel(root, path)
-			if err != nil {
-				return err
-			}
-			return submain(rel)
-		})
+	err := filepath.Walk(root, submain)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func submain(filepath string) error {
-	log.Println(filepath + "is loading...")
-	infile, err := os.Open("data/images/" + filepath)
+func submain(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	if info.IsDir() {
+		return nil
+	}
+
+	log.Println(path + "is loading...")
+	infile, err := os.Open(path)
 	defer infile.Close()
 	if err != nil {
 		log.Printf("main open file :%v\n", err)
@@ -53,7 +51,9 @@ func submain(filepath string) error {
 
 	nimg = manaco.Hough(w, img)
 
-	outfile, err := os.Create("result/" + "test__" + filepath)
+	rel, err := filepath.Rel("data/images", path)
+
+	outfile, err := os.Create("result/" + "test__" + rel)
 	if err != nil {
 		return err
 	}
