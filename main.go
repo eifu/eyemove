@@ -6,18 +6,25 @@ import (
 	"image/png"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
 func main() {
+	for i := 1; i < 10; i++ {
+		submain(i)
+	}
+}
+
+func submain(filename int) {
 	start := time.Now()
-	file, err := os.Open("data/test2.jpg")
-	defer file.Close()
+	infile, err := os.Open("data/images/" + "AVI__Eye_378_1_4002900439_024.avi__0000" + strconv.Itoa(filename) + ".jpg")
+	defer infile.Close()
 	if err != nil {
 		log.Printf("main open file :%v\n", err)
 		os.Exit(1)
 	}
-	img, _, err := image.Decode(file)
+	img, _, err := image.Decode(infile)
 	if err != nil {
 		log.Printf("main read file :%v\n", err)
 		os.Exit(1)
@@ -33,10 +40,15 @@ func main() {
 
 	nimg = manaco.Hough(w, img)
 
-	if err := png.Encode(os.Stdout, nimg); err != nil {
+	outfile, err := os.Create("result/" + strconv.Itoa(filename) + ".jpg")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outfile.Close()
+
+	if err := png.Encode(outfile, nimg); err != nil {
 		log.Printf("main write file :%v\n", err)
 		os.Exit(1)
 	}
 	log.Printf("Process took %.3fs total\n", time.Since(start).Seconds())
-
 }
