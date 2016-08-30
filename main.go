@@ -4,7 +4,7 @@ import (
 	"./manaco"
 	"flag"
 	"image"
-	"image/png"
+	"image/jpeg"
 	"log"
 	"os"
 	"path/filepath"
@@ -47,7 +47,7 @@ func submain(filepath string) error {
 
 	nimg, _ = manaco.CutoffRGBA(nimg)
 
-	nimg = manaco.Sb(nimg, 1)
+	nimg = manaco.Sobel(nimg, 1)
 
 	_, w := manaco.Binary(nimg)
 
@@ -59,7 +59,7 @@ func submain(filepath string) error {
 	}
 	defer outfile.Close()
 
-	if err := png.Encode(outfile, nimg); err != nil {
+	if err := jpeg.Encode(outfile, nimg, nil); err != nil {
 		log.Printf("main write file :%v\n", err)
 		return err
 	}

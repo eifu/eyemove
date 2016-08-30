@@ -73,7 +73,6 @@ func process3(in <-chan [][3]int, acc []int, width, height int) {
 }
 
 func Hough2(w []image.Point, pimg image.Image) *image.RGBA {
-	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
 	var rad float64
@@ -186,7 +185,6 @@ func Hough2(w []image.Point, pimg image.Image) *image.RGBA {
 }
 
 func Hough(w []image.Point, pimg image.Image) *image.RGBA {
-	log.Print("start hough transforming")
 	rect := pimg.Bounds()
 
 	var rad, rf float64
@@ -205,7 +203,6 @@ func Hough(w []image.Point, pimg image.Image) *image.RGBA {
 	width, height := rect.Max.X, rect.Max.Y
 	rmax := height / 2
 	acc := make([]int, width*height*(rmax-MinEyeR))
-	n := time.Now()
 
 	var p image.Point
 	// tranform to 3d space
@@ -264,7 +261,6 @@ func Hough(w []image.Point, pimg image.Image) *image.RGBA {
 
 		}
 	}
-	log.Printf("  transform takes %.3fs \n", time.Since(n).Seconds())
 	// find maximus value acc in a for each radious
 	// maxlist store data max accumulated point for each radious
 	maxl := make([]int, rmax-MinEyeR)
@@ -402,7 +398,6 @@ func DrawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 }
 
 func GaussianFilter(img image.Image) *image.RGBA {
-	log.Print("start gaussian smoothing")
 	rect := img.Bounds()
 	nimg1 := image.NewRGBA(rect)
 	// convolution algorithm
@@ -513,7 +508,6 @@ func conv1d2(a []uint32) uint8 {
 }
 
 func Binary(img image.Image) (*image.RGBA, []image.Point) {
-	log.Print("start settling black or white")
 	rect := img.Bounds()
 	width, height := rect.Max.X, rect.Max.Y
 	cl := make([]uint32, width*height)
@@ -544,7 +538,6 @@ func Binary(img image.Image) (*image.RGBA, []image.Point) {
 }
 
 func CutoffRGBA(img image.Image) (*image.RGBA, uint32) {
-	log.Print("start cut off below average")
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var acc, ave, c0 uint32
@@ -571,7 +564,6 @@ func CutoffRGBA(img image.Image) (*image.RGBA, uint32) {
 }
 
 func ExpandRGBA(img image.Image) *image.RGBA {
-	log.Print("start expanding")
 	rect := img.Bounds()
 
 	var min, max uint8 = 0xFF, 0
@@ -606,8 +598,7 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
-func Sb(img image.Image, w float64) *image.RGBA {
-	log.Print("start sobel algorithm...")
+func Sobel(img image.Image, w float64) *image.RGBA {
 	rect := img.Bounds()
 	nimg := image.NewRGBA(rect)
 	var sum, gx, gy float64
@@ -657,8 +648,8 @@ func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
 	return accY, accX
 }
 
-func Pw(img image.Image) image.Image {
-	return Sb(img, 1)
+func Prewitt(img image.Image) image.Image {
+	return Sobel(img, 1)
 }
 
 func gradient_magnitude(dx, dy float64) float64 {
