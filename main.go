@@ -4,7 +4,7 @@ import (
 	"./manaco"
 	"flag"
 	"image"
-	"image/jpeg"
+	"image/png"
 	"log"
 	"os"
 	"path/filepath"
@@ -59,7 +59,7 @@ func submain(path string, info os.FileInfo, err error) error {
 	}
 	defer outfile.Close()
 
-	if err := jpeg.Encode(outfile, nimg, nil); err != nil {
+	if err := png.Encode(outfile, nimg); err != nil {
 		log.Printf("main write file :%v\n", err)
 		return err
 	}
