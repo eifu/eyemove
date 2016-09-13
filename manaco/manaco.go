@@ -470,7 +470,7 @@ func (eye *eyeImage) Sobel(w float64) {
 	var sum, gx, gy float64
 	for j := 0; j < rect.Max.Y; j++ {
 		for i := 0; i < rect.Max.X; i++ {
-			gy, gx = sb_helper(eye.MyRGBA, i, j, w)
+			gy, gx = eye.sb_helper( i, j, w)
 			sum = math.Sqrt(gx*gx + gy*gy)
 			if sum > 255 {
 				sum = 255
@@ -481,13 +481,14 @@ func (eye *eyeImage) Sobel(w float64) {
 	eye.MyRGBA = temp
 }
 
-func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
+func (eye *eyeImage) sb_helper(x, y int, w float64) (float64, float64) {
+	rect := eye.MyRect
 	var accY, accX float64
 	var c uint32
 	for j := y - 1; j < y+2; j++ {
 		for i := x - 1; i < x+2; i++ {
-			if (image.Point{i, j}.In(img.Bounds())) {
-				c, _, _, _ = img.At(i, j).RGBA()
+			if (image.Point{i, j}.In(rect)){
+				c, _, _, _ = eye.MyRGBA.At(i, j).RGBA()
 				switch {
 				case i == x-1 && j != y:
 					accY -= float64(c & 0xFF)
