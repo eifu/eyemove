@@ -7,7 +7,6 @@ import (
 	_ "image/jpeg"
 	"log"
 	"math"
-	"time"
 )
 
 const (
@@ -18,6 +17,8 @@ type eyeImage struct {
 	MyRect image.Rectangle
 	OriginalImage *image.Image
 	MyRGBA *image.RGBA
+	MyCenter image.Point
+	MyRadius int
 }
 
 func InitEyeImage(img *image.Image) *eyeImage{
@@ -35,179 +36,8 @@ func InitEyeImage(img *image.Image) *eyeImage{
 	}
 }
 
-func process1(out chan<- [3]int, rmax int, trigo []float64) {
-	for r := 0; r < rmax-MinEyeR; r++ {
-		rf := float64(r + MinEyeR)
-		for deg := 0; deg < 45; deg++ {
-			rfcosX := int(rf * trigo[2*deg])
-			rfsinX := int(rf * trigo[2*deg+1])
-			out <- [3]int{rfcosX, rfsinX, r}
-		}
-	}
-	close(out)
-}
-
-func process2(out chan<- [][3]int, in <-chan [3]int, w []image.Point, rect image.Rectangle) {
-	for v := range in {
-		rfcosX := v[0]
-		rfsinX := v[1]
-		radius := v[2]
-		for _, p := range w {
-
-			p_news := make([][3]int, 0, 8)
-
-			if (image.Point{p.X + rfcosX, p.Y + rfsinX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X + rfcosX, p.Y + rfsinX, radius})
-			}
-			if (image.Point{p.X + rfsinX, p.Y + rfcosX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X + rfsinX, p.Y + rfcosX, radius})
-			}
-			if (image.Point{p.X - rfsinX, p.Y + rfcosX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X - rfsinX, p.Y + rfcosX, radius})
-			}
-			if (image.Point{p.X - rfcosX, p.Y + rfsinX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X - rfcosX, p.Y + rfsinX, radius})
-			}
-			if (image.Point{p.X - rfcosX, p.Y - rfsinX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X - rfcosX, p.Y - rfsinX, radius})
-			}
-			if (image.Point{p.X - rfsinX, p.Y - rfcosX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X - rfsinX, p.Y - rfcosX, radius})
-			}
-			if (image.Point{p.X + rfsinX, p.Y - rfcosX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X + rfsinX, p.Y - rfcosX, radius})
-			}
-			if (image.Point{p.X + rfcosX, p.Y - rfsinX}.In(rect)) {
-				p_news = append(p_news, [3]int{p.X + rfcosX, p.Y - rfsinX, radius})
-			}
-			out <- p_news
-		}
-	}
-	close(out)
-}
-
-func process3(in <-chan [][3]int, acc []int, width, height int) {
-	for v := range in {
-		for _, p_new := range v {
-			acc[p_new[0]+p_new[1]*width+width*height*p_new[2]] += 1
-		}
-	}
-}
-
-func Hough2(w []image.Point, pimg image.Image) *image.RGBA {
-	rect := pimg.Bounds()
-
-	var rad float64
-	var c uint32
-	var x0, x1, tmp int
-	var y0, y1 int
-	// trigo variable array
-	// cosX, sinX
-	trigo := make([]float64, 90)
-	for i := 0; i < 45; i++ {
-		rad = float64(i) * math.Pi / 180.0
-		trigo[2*i] = math.Cos(rad)
-		trigo[2*i+1] = math.Sin(rad)
-	}
-
-	width, height := rect.Max.X, rect.Max.Y
-	rmax := height / 2
-	acc := make([]int, width*height*(rmax-MinEyeR))
-	n := time.Now()
-
-	// tranform to 3d space
-
-	deg_chan := make(chan [3]int)
-	p_chan := make(chan [][3]int)
-	go process1(deg_chan, rmax, trigo)
-	go process2(p_chan, deg_chan, w, rect)
-	process3(p_chan, acc, width, height)
-
-	log.Printf("  transform takes %.2f \n", time.Since(n).Seconds())
-	// find maximus value acc in a for each radious
-	// maxlist store data max accumulated point for each radious
-	maxl := make([]int, rmax-MinEyeR)
-	// cntlist store center Point that is maximum acc
-	cntl := make([]image.Point, rmax-MinEyeR)
-	var cnt image.Point
-	for r := 0; r < rmax-MinEyeR; r++ {
-		tmp = 0
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				if tmp < acc[x+y*width+width*height*r] {
-					tmp = acc[x+y*width+width*height*r]
-					cnt = image.Point{x, y}
-				}
-			}
-		}
-		maxl[r] = tmp
-		cntl[r] = cnt
-	}
-
-	// second derivative of radious candidates
-	// i, i+1, i+2, i+3, i+4
-	// \+/  \+/  \-/  \-/
-	var cc []int
-	for i := 0; i < len(maxl)-4; i++ {
-		if maxl[i+1]-maxl[i] < 0 {
-			continue
-		} else if maxl[i+2]-maxl[i+1] < 0 {
-			i += 1
-		} else if maxl[i+3]-maxl[i+2] > 0 {
-			continue
-		} else if maxl[i+4]-maxl[i+3] > 0 {
-			i += 2
-		} else {
-			cc = append(cc, i+2)
-			// TODO: i or i+1 is arbitrary
-		}
-	}
-
-	// TODO: best 2 is arbitrary
-	// accm0, accm1: best 2 accumulation maximums
-	// cd0, cd1: best 2 candidates of radious
-	var cd0, cd1, accm0, accm1 int
-
-	for _, e := range cc {
-		if accm0 < maxl[e] {
-			tmp = accm0
-			accm0 = maxl[e]
-			accm1 = tmp
-			tmp = cd0
-			cd0 = e
-			cd1 = tmp
-		} else if accm1 < maxl[e] {
-			accm1 = maxl[e]
-			cd1 = e
-		}
-	}
-
-	// determine which one has more black pixels than the other
-	var acc0, acc1 uint32
-	x0, y0, x1, y1 = cntl[cd0].X, cntl[cd0].Y, cntl[cd1].X, cntl[cd1].Y
-	r0, r1 := (cd0+MinEyeR)*(cd0+MinEyeR), (cd1+MinEyeR)*(cd1+MinEyeR)
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			if (x-x0)*(x-x0)+(y-y0)*(y-y0) < r0 {
-				c, _, _, _ = pimg.At(x, y).RGBA()
-				acc0 += c & 0xFF
-			}
-			if (x-x1)*(x-x1)+(y-y1)*(y-y1) < r1 {
-				c, _, _, _ = pimg.At(x, y).RGBA()
-				acc1 += c & 0xFF
-			}
-		}
-	}
-	dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
-	if dens0 < dens1 {
-		return DrawCircle(pimg, cntl[cd0], cd0+MinEyeR)
-	}
-	return DrawCircle(pimg, cntl[cd1], cd1+MinEyeR)
-}
-
-func Hough(w []image.Point, pimg image.Image) *image.RGBA {
-	rect := pimg.Bounds()
+func (eye *eyeImage)Hough(w []image.Point)  {
+	rect := eye.MyRect
 
 	var rad, rf float64
 	var c uint32
@@ -350,31 +180,41 @@ func Hough(w []image.Point, pimg image.Image) *image.RGBA {
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			if (x-x0)*(x-x0)+(y-y0)*(y-y0) < r0 {
-				c, _, _, _ = pimg.At(x, y).RGBA()
+				c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
 				acc0 += c & 0xFF
 			}
 			if (x-x1)*(x-x1)+(y-y1)*(y-y1) < r1 {
-				c, _, _, _ = pimg.At(x, y).RGBA()
+				c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
 				acc1 += c & 0xFF
 			}
 		}
 	}
 	dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
 	if dens0 < dens1 {
-		return DrawCircle(pimg, cntl[cd0], cd0+MinEyeR)
+		eye.MyCenter = cntl[cd0]
+		eye.MyRadius = cd0 + MinEyeR
+		eye.DrawCircle()
+	}else{
+		eye.MyCenter = cntl[cd1]
+		eye.MyRadius = cd1 + MinEyeR
+		eye.DrawCircle()
 	}
-	return DrawCircle(pimg, cntl[cd1], cd1+MinEyeR)
+	
 }
 
-func DrawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
-	rect := img.Bounds()
-	nimg := image.NewRGBA(rect)
+func (eye *eyeImage)DrawCircle() {
+	rect := eye.MyRect
+	temp := image.NewRGBA(rect)
 	var c uint32
 	var deg, rad, x0, y0, x1, y1 float64
+
+	cnt := eye.MyCenter
+	r := eye.MyRadius
+
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
-			c, _, _, _ = img.At(x, y).RGBA()
-			nimg.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
+			temp.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
 		}
 	}
 	xf, yf, rf := float64(cnt.X), float64(cnt.Y), float64(r)
@@ -385,38 +225,39 @@ func DrawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 		// first quadrant 0-45
 		x0 = xf + x1
 		y0 = yf + y1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// first quadrant 46-90
 		x0 = xf + y1
 		y0 = yf + x1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// second quadrant 91-135
 		x0 = xf - y1
 		y0 = yf + x1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// second quadrant 136-180
 		x0 = xf - x1
 		y0 = yf + y1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// third quadrant 181-215
 		x0 = xf - x1
 		y0 = yf - y1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// third quadrant 216-270
 		x0 = xf - y1
 		y0 = yf - x1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// fourth quadrant 271-315
 		x0 = xf + y1
 		y0 = yf - x1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 		// fourth quadrant 316-359
 		x0 = xf + x1
 		y0 = yf - y1
-		nimg.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 	}
-	nimg.Set(cnt.X, cnt.Y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
-	return nimg
+	temp.Set(cnt.X, cnt.Y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+	
+	eye.MyRGBA = temp
 }
 
 func (eye *eyeImage)GaussianFilter()  {

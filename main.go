@@ -49,9 +49,9 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image.Sobel(2)
 
-	 _ = eye_image.Binary()
+	w := eye_image.Binary()
 
-	// nimg = manaco.Hough(w, img)
+	eye_image.Hough(w)
 
 	rel, err := filepath.Rel("data/images", path)
 
