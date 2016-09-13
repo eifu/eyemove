@@ -53,6 +53,8 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image.Hough(w)
 
+	eye_image.DrawCircle()
+
 	rel, err := filepath.Rel("data/images", path)
 
 	outfile, err := os.Create("result/" + "test__" + rel)

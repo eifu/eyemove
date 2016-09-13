@@ -193,11 +193,9 @@ func (eye *eyeImage) Hough(w []image.Point) {
 	if dens0 < dens1 {
 		eye.MyCenter = cntl[cd0]
 		eye.MyRadius = cd0 + MinEyeR
-		eye.DrawCircle()
 	} else {
 		eye.MyCenter = cntl[cd1]
 		eye.MyRadius = cd1 + MinEyeR
-		eye.DrawCircle()
 	}
 
 }
