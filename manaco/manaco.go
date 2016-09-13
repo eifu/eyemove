@@ -14,29 +14,29 @@ const (
 )
 
 type eyeImage struct {
-	MyRect image.Rectangle
+	MyRect        image.Rectangle
 	OriginalImage *image.Image
-	MyRGBA *image.RGBA
-	MyCenter image.Point
-	MyRadius int
+	MyRGBA        *image.RGBA
+	MyCenter      image.Point
+	MyRadius      int
 }
 
-func InitEyeImage(img *image.Image) *eyeImage{
+func InitEyeImage(img *image.Image) *eyeImage {
 	m := image.NewRGBA((*img).Bounds())
-	for y := 0; y < m.Bounds().Max.Y; y ++{
-		for x := 0; x < m.Bounds().Max.X; x ++{
-			m.Set(x,y,(*img).At(x,y))
+	for y := 0; y < m.Bounds().Max.Y; y++ {
+		for x := 0; x < m.Bounds().Max.X; x++ {
+			m.Set(x, y, (*img).At(x, y))
 		}
 	}
 
 	return &eyeImage{
-		MyRect: (*img).Bounds(),
+		MyRect:        (*img).Bounds(),
 		OriginalImage: img,
-		MyRGBA: m,
+		MyRGBA:        m,
 	}
 }
 
-func (eye *eyeImage)Hough(w []image.Point)  {
+func (eye *eyeImage) Hough(w []image.Point) {
 	rect := eye.MyRect
 
 	var rad, rf float64
@@ -194,15 +194,15 @@ func (eye *eyeImage)Hough(w []image.Point)  {
 		eye.MyCenter = cntl[cd0]
 		eye.MyRadius = cd0 + MinEyeR
 		eye.DrawCircle()
-	}else{
+	} else {
 		eye.MyCenter = cntl[cd1]
 		eye.MyRadius = cd1 + MinEyeR
 		eye.DrawCircle()
 	}
-	
+
 }
 
-func (eye *eyeImage)DrawCircle() {
+func (eye *eyeImage) DrawCircle() {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
 	var c uint32
@@ -256,16 +256,16 @@ func (eye *eyeImage)DrawCircle() {
 		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 	}
 	temp.Set(cnt.X, cnt.Y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
-	
+
 	eye.MyRGBA = temp
 }
 
-func (eye *eyeImage)GaussianFilter()  {
+func (eye *eyeImage) GaussianFilter() {
 
 	temp := &eyeImage{
-		MyRect:eye.MyRect,
+		MyRect:        eye.MyRect,
 		OriginalImage: eye.OriginalImage,
-		MyRGBA: image.NewRGBA(eye.MyRect),
+		MyRGBA:        image.NewRGBA(eye.MyRect),
 	}
 	// convolution algorithm
 	var c0 uint32
@@ -371,7 +371,7 @@ func conv1d2(a []uint32) uint8 {
 	return uint8(f0)
 }
 
-func (eye *eyeImage)Binary() []image.Point {
+func (eye *eyeImage) Binary() []image.Point {
 	rect := eye.MyRect
 	width, height := rect.Max.X, rect.Max.Y
 	clr := make([]uint32, width*height)
@@ -381,7 +381,7 @@ func (eye *eyeImage)Binary() []image.Point {
 		for x := 0; x < width; x++ {
 			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
 			clr[x+y*width] = c0 & 0xFF
-			acc += c0&0xFF
+			acc += c0 & 0xFF
 		}
 	}
 	ave = acc / uint32(width*height)
@@ -399,13 +399,13 @@ func (eye *eyeImage)Binary() []image.Point {
 		}
 	}
 	eye.MyRGBA = temp
-	return  w
+	return w
 }
 
-func (eye *eyeImage)CutoffRGBA()  {
+func (eye *eyeImage) CutoffRGBA() {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
-	
+
 	var acc, ave, c0 uint32
 
 	for y := 0; y < rect.Max.Y; y++ {
@@ -464,7 +464,7 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
-func (eye *eyeImage)Sobel(w float64) {
+func (eye *eyeImage) Sobel(w float64) {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
 	var sum, gx, gy float64
@@ -514,76 +514,6 @@ func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
 	return accY, accX
 }
 
-func (eye *eyeImage)Prewitt() {
+func (eye *eyeImage) Prewitt() {
 	eye.Sobel(1)
-}
-
-func gradient_magnitude(dx, dy float64) float64 {
-	return math.Sqrt(dx*dx + dy*dy)
-}
-
-func gradient_theta(dx, dy float64) float64 {
-	if dx == 1.0 && dy == 1.0 {
-		return -200.0
-	}
-	th := math.Atan2(dy, dx) * (180 / math.Pi)
-	return th
-}
-
-func row_iterate(img image.Image, ave uint32) ([]int, []int) {
-	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
-
-	var maxlist = make([]int, ymax)
-	var minlist = make([]int, ymax)
-	var row_array = make([]int, xmax-1)
-
-	var max, maxx, min, minx int
-	var c0, c1 uint32
-	for y := 0; y < ymax; y++ {
-		max, min = 0, 0xFF
-		for x := 1; x < xmax; x++ {
-			c0, _, _, _ = img.At(x-1, y).RGBA()
-			c1, _, _, _ = img.At(x, y).RGBA()
-			row_array[x-1] = int(c1) - int(c0)
-			if c0&0xFF != ave && c1&0xFF != ave {
-				if max < row_array[x-1] {
-					max, maxx = row_array[x-1], x
-				}
-				if min > row_array[x-1] {
-					min, minx = row_array[x-1], x
-				}
-			}
-		}
-		maxlist[y], minlist[y] = maxx, minx
-	}
-	return maxlist, minlist
-}
-
-func col_iterate(img image.Image, ave uint32) ([]int, []int) {
-	xmax, ymax := img.Bounds().Max.X, img.Bounds().Max.Y
-
-	var maxlist = make([]int, xmax)
-	var minlist = make([]int, xmax)
-	var col_array = make([]int, ymax-1)
-
-	var max, maxy, min, miny int
-	var c0, c1 uint32
-	for x := 0; x < xmax; x++ {
-		max, min = 0, 0xFF
-		for y := 1; y < ymax; y++ {
-			c0, _, _, _ = img.At(x, y-1).RGBA()
-			c1, _, _, _ = img.At(x, y).RGBA()
-			col_array[y-1] = int(c1) - int(c0)
-			if c0&0xFF != ave && c1&0xFF != ave {
-				if max < col_array[y-1] {
-					max, maxy = col_array[y-1], y
-				}
-				if min > col_array[y-1] {
-					min, miny = col_array[y-1], y
-				}
-			}
-		}
-		maxlist[x], minlist[x] = maxy, miny
-	}
-	return maxlist, minlist
 }
