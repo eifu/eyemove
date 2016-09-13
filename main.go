@@ -47,7 +47,7 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image.CutoffRGBA()
 
-	// nimg = manaco.Sobel(nimg, 1)
+	eye_image.Sobel(1)
 
 	// _, w := manaco.Binary(nimg)
 
@@ -55,7 +55,7 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	rel, err := filepath.Rel("data/images", path)
 
-	outfile, err := os.Create("result/" + "test2__" + rel)
+	outfile, err := os.Create("result/" + "test__" + rel)
 	if err != nil {
 		return err
 	}

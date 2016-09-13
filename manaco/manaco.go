@@ -622,21 +622,21 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
-func Sobel(img image.Image, w float64) *image.RGBA {
-	rect := img.Bounds()
-	nimg := image.NewRGBA(rect)
+func (eye *eyeImage)Sobel(w float64) {
+	rect := eye.MyRect
+	temp := image.NewRGBA(rect)
 	var sum, gx, gy float64
 	for j := 0; j < rect.Max.Y; j++ {
 		for i := 0; i < rect.Max.X; i++ {
-			gy, gx = sb_helper(img, i, j, w)
+			gy, gx = sb_helper(eye.MyRGBA, i, j, w)
 			sum = math.Sqrt(gx*gx + gy*gy)
 			if sum > 255 {
 				sum = 255
 			}
-			nimg.Set(i, j, color.Gray{uint8(sum)})
+			temp.Set(i, j, color.Gray{uint8(sum)})
 		}
 	}
-	return nimg
+	eye.MyRGBA = temp
 }
 
 func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
@@ -672,8 +672,8 @@ func sb_helper(img image.Image, x, y int, w float64) (float64, float64) {
 	return accY, accX
 }
 
-func Prewitt(img image.Image) image.Image {
-	return Sobel(img, 1)
+func (eye *eyeImage)Prewitt() {
+	eye.Sobel(1)
 }
 
 func gradient_magnitude(dx, dy float64) float64 {
