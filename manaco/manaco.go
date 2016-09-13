@@ -16,13 +16,15 @@ const (
 
 type eyeImage struct {
 	MyRect image.Rectangle
-	MyImage *draw.Image
+	OriginalImage *image.Image
+	MyRGBA *image.RGBA
 }
 
 func InitEyeImage(img *image.Image) *eyeImage{
 	return &eyeImage{
 		MyRect: (*img).Bounds(),
-		MyImage: img,
+		OriginalImage: img,
+		MyRGBA: image.NewRGBA((*img).Bounds()),
 	}
 }
 
