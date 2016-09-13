@@ -41,7 +41,7 @@ func submain(path string, info os.FileInfo, err error) error {
 		return err
 	}
 
-	eye_image := manaco.InitEyeImage(img)
+	eye_image := manaco.InitEyeImage(&img)
 
 	nimg := eye_image.GaussianFilter()
 

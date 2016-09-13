@@ -2,7 +2,7 @@ package manaco
 
 import (
 	"image"
-	"image/draw"
+
 	"image/color"
 	_ "image/jpeg"
 	"log"
@@ -414,12 +414,10 @@ func DrawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 
 func (eye *eyeImage)GaussianFilter() *eyeImage {
 
-	m := image.NewRGBA(eye.MyRect)
-	draw.Draw(m, m.Bounds(), *eye.MyImage, image.ZP, draw.Src)
-
 	nimg1 := &eyeImage{
 		MyRect:eye.MyRect,
-		MyImage: m,
+		OriginalImage: eye.OriginalImage,
+		MyRGBA: image.NewRGBA(eye.MyRect),
 	}
 	// convolution algorithm
 	var c0 uint32
@@ -469,29 +467,31 @@ func (eye *eyeImage)GaussianFilter() *eyeImage {
 
 	nimg2 := &eyeImage{
 		MyRect: eye.MyRect,
+		OriginalImage: eye.OriginalImage,
 		MyRGBA:		image.NewRGBA(eye.MyRect),
 	}
-	for x := 0; x < eye.MyRect.Max.X; x++ {
+
+	for x := 0; x < nimg1.MyRect.Max.X; x++ {
 
 		// store a column of pixel val to int array
-		mid = make([]int, eye.MyRect.Max.Y)
+		mid = make([]int, nimg1.MyRect.Max.Y)
 		for y := 0; y < 3; y++ {
 			c0, _, _, _ = nimg1.MyRGBA.At(x, y).RGBA()
 			mid[y] = 4 * int(c0&0xFF)
 			nimg2.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 		}
-		for y := 3; y < eye.MyRect.Max.Y-3; y++ {
+		for y := 3; y < nimg1.MyRect.Max.Y-3; y++ {
 			c0, _, _, _ = nimg1.MyRGBA.At(x, y).RGBA()
 			mid[y] = 4 * int(c0&0xFF)
 		}
-		for y := eye.MyRect.Max.Y - 3; y < eye.MyRect.Max.Y; y++ {
+		for y := nimg1.MyRect.Max.Y - 3; y < nimg1.MyRect.Max.Y; y++ {
 			c0, _, _, _ = nimg1.MyRGBA.At(x, y).RGBA()
 			mid[y] = 4 * int(c0&0xFF)
 			nimg2.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 		}
 
 		// invoke corresponding floating val to pix array
-		for y := 3; y < eye.MyRect.Max.Y-3; y++ {
+		for y := 3; y < nimg1.MyRect.Max.Y-3; y++ {
 			c = c_arr[mid[y-3]+3]
 			c += c_arr[mid[y-2]+2]
 			c += c_arr[mid[y-1]+1]
