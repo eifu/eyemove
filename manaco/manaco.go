@@ -419,9 +419,9 @@ func DrawCircle(img image.Image, cnt image.Point, r int) *image.RGBA {
 	return nimg
 }
 
-func (eye *eyeImage)GaussianFilter() *eyeImage {
+func (eye *eyeImage)GaussianFilter()  {
 
-	newEyeImage1 := &eyeImage{
+	temp := &eyeImage{
 		MyRect:eye.MyRect,
 		OriginalImage: eye.OriginalImage,
 		MyRGBA: image.NewRGBA(eye.MyRect),
@@ -447,7 +447,7 @@ func (eye *eyeImage)GaussianFilter() *eyeImage {
 		for x := 0; x < 3; x++ {
 			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
 			mid[x] = 4 * int(c0&0xFF)
-			newEyeImage1.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
+			temp.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 		}
 		for x := 3; x < eye.MyRect.Max.X-3; x++ {
 			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
@@ -456,7 +456,7 @@ func (eye *eyeImage)GaussianFilter() *eyeImage {
 		for x := eye.MyRect.Max.X - 3; x < eye.MyRect.Max.X; x++ {
 			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
 			mid[x] = 4 * int(c0&0xFF)
-			newEyeImage1.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
+			temp.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 		}
 
 		// invoke corresponding floating val to pix array
@@ -468,37 +468,31 @@ func (eye *eyeImage)GaussianFilter() *eyeImage {
 			c += c_arr[mid[x+1]+1]
 			c += c_arr[mid[x+2]+2]
 			c += c_arr[mid[x+3]+3]
-			newEyeImage1.MyRGBA.Set(x, y, color.Gray{uint8(c)})
+			temp.MyRGBA.Set(x, y, color.Gray{uint8(c)})
 		}
 	}
 
-	newEyeImage2 := &eyeImage{
-		MyRect: eye.MyRect,
-		OriginalImage: eye.OriginalImage,
-		MyRGBA:		image.NewRGBA(eye.MyRect),
-	}
-
-	for x := 0; x < newEyeImage1.MyRect.Max.X; x++ {
+	for x := 0; x < temp.MyRect.Max.X; x++ {
 
 		// store a column of pixel val to int array
-		mid = make([]int, newEyeImage1.MyRect.Max.Y)
+		mid = make([]int, temp.MyRect.Max.Y)
 		for y := 0; y < 3; y++ {
-			c0, _, _, _ = newEyeImage1.MyRGBA.At(x, y).RGBA()
+			c0, _, _, _ = temp.MyRGBA.At(x, y).RGBA()
 			mid[y] = 4 * int(c0&0xFF)
-			newEyeImage2.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
+			eye.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 		}
-		for y := 3; y < eye.MyRect.Max.Y-3; y++ {
-			c0, _, _, _ = nimg1.MyRGBA.At(x, y).RGBA()
+		for y := 3; y < temp.MyRect.Max.Y-3; y++ {
+			c0, _, _, _ = temp.MyRGBA.At(x, y).RGBA()
 			mid[y] = 4 * int(c0&0xFF)
 		}
-		for y := eye.MyRect.Max.Y - 3; y < eye.MyRect.Max.Y; y++ {
-			c0, _, _, _ = newEyeImage1.MyRGBA.At(x, y).RGBA()
+		for y := temp.MyRect.Max.Y - 3; y < temp.MyRect.Max.Y; y++ {
+			c0, _, _, _ = temp.MyRGBA.At(x, y).RGBA()
 			mid[y] = 4 * int(c0&0xFF)
-			newEyeImage2.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
+			eye.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 		}
 
 		// invoke corresponding floating val to pix array
-		for y := 3; y < newEyeImage1.MyRect.Max.Y-3; y++ {
+		for y := 3; y < temp.MyRect.Max.Y-3; y++ {
 			c = c_arr[mid[y-3]+3]
 			c += c_arr[mid[y-2]+2]
 			c += c_arr[mid[y-1]+1]
@@ -506,10 +500,9 @@ func (eye *eyeImage)GaussianFilter() *eyeImage {
 			c += c_arr[mid[y+1]+1]
 			c += c_arr[mid[y+2]+2]
 			c += c_arr[mid[y+3]+3]
-			newEyeImage2.MyRGBA.Set(x, y, color.Gray{uint8(c)})
+			eye.MyRGBA.Set(x, y, color.Gray{uint8(c)})
 		}
 	}
-	return newEyeImage2
 }
 
 func conv1d(c0, c1, c2, c3, c4, c5, c6 uint32) uint8 {

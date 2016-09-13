@@ -43,9 +43,9 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image := manaco.InitEyeImage(&img)
 
-	nimg := eye_image.GaussianFilter()
+	eye_image.GaussianFilter()
 
-	// nimg, _ = manaco.CutoffRGBA(nimg)
+	// nimg, _ = eye.CutoffRGBA(nimg)
 
 	// nimg = manaco.Sobel(nimg, 1)
 
@@ -55,13 +55,13 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	rel, err := filepath.Rel("data/images", path)
 
-	outfile, err := os.Create("result/" + "test__" + rel)
+	outfile, err := os.Create("result/" + "test2__" + rel)
 	if err != nil {
 		return err
 	}
 	defer outfile.Close()
 
-	if err := png.Encode(outfile, nimg.MyRGBA); err != nil {
+	if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
 		log.Printf("main write file :%v\n", err)
 		return err
 	}
