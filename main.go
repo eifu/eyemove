@@ -47,9 +47,9 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image.CutoffRGBA()
 
-	eye_image.Sobel(1)
+	eye_image.Sobel(2)
 
-	// _, w := manaco.Binary(nimg)
+	 _ = eye_image.Binary()
 
 	// nimg = manaco.Hough(w, img)
 

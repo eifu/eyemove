@@ -530,17 +530,17 @@ func conv1d2(a []uint32) uint8 {
 	return uint8(f0)
 }
 
-func Binary(img image.Image) (*image.RGBA, []image.Point) {
-	rect := img.Bounds()
+func (eye *eyeImage)Binary() []image.Point {
+	rect := eye.MyRect
 	width, height := rect.Max.X, rect.Max.Y
-	cl := make([]uint32, width*height)
-	nimg := image.NewRGBA(rect)
+	clr := make([]uint32, width*height)
+	temp := image.NewRGBA(rect)
 	var acc, ave, c0 uint32
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			c0, _, _, _ = img.At(x, y).RGBA()
-			cl[x+y*width] = c0 & 0xFF
-			acc = acc + c0&0xFF
+			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
+			clr[x+y*width] = c0 & 0xFF
+			acc += c0&0xFF
 		}
 	}
 	ave = acc / uint32(width*height)
@@ -549,15 +549,16 @@ func Binary(img image.Image) (*image.RGBA, []image.Point) {
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			if cl[x+y*width] > ave {
+			if clr[x+y*width] > ave {
 				w = append(w, image.Point{x, y})
-				nimg.Set(x, y, color.Gray{0xFF})
+				temp.Set(x, y, color.Gray{0xFF})
 			} else {
-				nimg.Set(x, y, color.Gray{0x0})
+				temp.Set(x, y, color.Gray{0x0})
 			}
 		}
 	}
-	return nimg, w
+	eye.MyRGBA = temp
+	return  w
 }
 
 func (eye *eyeImage)CutoffRGBA()  {
