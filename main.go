@@ -45,7 +45,7 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image.GaussianFilter()
 
-	// nimg, _ = eye.CutoffRGBA(nimg)
+	eye_image.CutoffRGBA()
 
 	// nimg = manaco.Sobel(nimg, 1)
 

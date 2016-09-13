@@ -560,14 +560,18 @@ func Binary(img image.Image) (*image.RGBA, []image.Point) {
 	return nimg, w
 }
 
-func CutoffRGBA(img image.Image) (*image.RGBA, uint32) {
-	rect := img.Bounds()
-	nimg := image.NewRGBA(rect)
+func (eye *eyeImage)CutoffRGBA()  {
+	rect := eye.MyRect
+	temp := &eyeImage{
+		MyRect : rect,
+		OriginalImage: eye.OriginalImage,
+		MyRGBA:image.NewRGBA(rect),
+	}
 	var acc, ave, c0 uint32
 
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
-			c0, _, _, _ = img.At(x, y).RGBA()
+			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
 			acc = acc + c0&0xFF
 		}
 	}
@@ -575,15 +579,15 @@ func CutoffRGBA(img image.Image) (*image.RGBA, uint32) {
 
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
-			c0, _, _, _ = img.At(x, y).RGBA()
+			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
 			if c0&0xFF > ave {
-				nimg.Set(x, y, color.Gray{uint8(ave)})
+				temp.MyRGBA.Set(x, y, color.Gray{uint8(ave)})
 			} else {
-				nimg.Set(x, y, color.Gray{uint8(c0)})
+				temp.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
 			}
 		}
 	}
-	return nimg, ave
+	eye.MyRGBA = temp.MyRGBA
 }
 
 func ExpandRGBA(img image.Image) *image.RGBA {
