@@ -17,8 +17,8 @@ type eyeImage struct {
 	MyRect        image.Rectangle
 	OriginalImage *image.Image
 	MyRGBA        *image.RGBA
-	MyCenter      image.Point
-	MyRadius      int
+	MyCenter      []image.Point
+	MyRadius      []int
 }
 
 func InitEyeImage(img *image.Image) *eyeImage {
@@ -38,9 +38,8 @@ func InitEyeImage(img *image.Image) *eyeImage {
 
 func (eye *eyeImage) Hough(w []image.Point) {
 	rect := eye.MyRect
-
-	var rad, rf float64
 	var c uint32
+	var rad, rf float64
 	var x0, x1, x2, x3, tmp, rfsinX, rfcosX int
 	var y0, y1, y2, y3 int
 	// trigo variable array
@@ -156,63 +155,75 @@ func (eye *eyeImage) Hough(w []image.Point) {
 	// TODO: best 2 is arbitrary
 	// accm0, accm1: best 2 accumulation maximums
 	// cd0, cd1: best 2 candidates of radious
-	var cd0, cd1, accm0, accm1 int
+	// var cd0, cd1, accm0, accm1 int
 
-	for _, e := range cc {
-		if accm0 < maxl[e] {
-			tmp = accm0
-			accm0 = maxl[e]
-			accm1 = tmp
-			tmp = cd0
-			cd0 = e
-			cd1 = tmp
-		} else if accm1 < maxl[e] {
-			accm1 = maxl[e]
-			cd1 = e
-		}
+	// for _, e := range cc {
+	// 	if accm0 < maxl[e] {
+	// 		tmp = accm0
+	// 		accm0 = maxl[e]
+	// 		accm1 = tmp
+	// 		tmp = cd0
+	// 		cd0 = e
+	// 		cd1 = tmp
+	// 	} else if accm1 < maxl[e] {
+	// 		accm1 = maxl[e]
+	// 		cd1 = e
+	// 	}
+	// }
+
+	for _, e := range cc{
+		eye.MyRadius = append(eye.MyRadius, e+MinEyeR)
+		eye.MyCenter = append(eye.MyCenter, cntl[e])
 	}
-
-	// determine which one has more black pixels than the other
-	var acc0, acc1 uint32
-	x0, y0, x1, y1 = cntl[cd0].X, cntl[cd0].Y, cntl[cd1].X, cntl[cd1].Y
-	r0, r1 := (cd0+MinEyeR)*(cd0+MinEyeR), (cd1+MinEyeR)*(cd1+MinEyeR)
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			if (x-x0)*(x-x0)+(y-y0)*(y-y0) < r0 {
-				c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-				acc0 += c & 0xFF
-			}
-			if (x-x1)*(x-x1)+(y-y1)*(y-y1) < r1 {
-				c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-				acc1 += c & 0xFF
-			}
-		}
-	}
-	dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
-	if dens0 < dens1 {
-		eye.MyCenter = cntl[cd0]
-		eye.MyRadius = cd0 + MinEyeR
-	} else {
-		eye.MyCenter = cntl[cd1]
-		eye.MyRadius = cd1 + MinEyeR
-	}
-
-}
-
-func (eye *eyeImage) DrawCircle() {
-	rect := eye.MyRect
-	temp := image.NewRGBA(rect)
-	var c uint32
-	var deg, rad, x0, y0, x1, y1 float64
-
-	cnt := eye.MyCenter
-	r := eye.MyRadius
 
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
 			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-			temp.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+			eye.MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+		}
+	}
+
+	// // determine which one has more black pixels than the other
+	// var acc0, acc1 uint32
+	// x0, y0, x1, y1 = cntl[cd0].X, cntl[cd0].Y, cntl[cd1].X, cntl[cd1].Y
+	// r0, r1 := (cd0+MinEyeR)*(cd0+MinEyeR), (cd1+MinEyeR)*(cd1+MinEyeR)
+
+	// for y := 0; y < height; y++ {
+	// 	for x := 0; x < width; x++ {
+	// 		if (x-x0)*(x-x0)+(y-y0)*(y-y0) < r0 {
+	// 			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
+	// 			acc0 += c & 0xFF
+	// 		}
+	// 		if (x-x1)*(x-x1)+(y-y1)*(y-y1) < r1 {
+	// 			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
+	// 			acc1 += c & 0xFF
+	// 		}
+	// 	}
+	// }
+	// dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
+	// if dens0 < dens1 {
+	// 	eye.MyCenter = cntl[cd0]
+	// 	eye.MyRadius = cd0 + MinEyeR
+	// } else {
+	// 	eye.MyCenter = cntl[cd1]
+	// 	eye.MyRadius = cd1 + MinEyeR
+	// }
+
+}
+
+func (eye *eyeImage) DrawCircle(i int) {
+	rect := eye.MyRect
+	temp := image.NewRGBA(rect)
+	var red,g,b uint32
+	var deg, rad, x0, y0, x1, y1 float64
+
+	cnt := eye.MyCenter[i]
+	r := eye.MyRadius[i]
+
+	for y := 0; y < rect.Max.Y; y++ {
+		for x := 0; x < rect.Max.X; x++ {
+			red, g, b, _ = eye.MyRGBA.At(x, y).RGBA()
+			temp.Set(x, y, color.RGBA{uint8(red), uint8(g), uint8(b), 0xFF})
 		}
 	}
 	xf, yf, rf := float64(cnt.X), float64(cnt.Y), float64(r)

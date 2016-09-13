@@ -56,7 +56,9 @@ func submain(path string, info os.FileInfo, err error) error {
 
 	eye_image.Hough(w)
 
-	eye_image.DrawCircle()
+	for i := 0; i < len(eye_image.MyRadius); i++{	
+		eye_image.DrawCircle(i)	
+	}
 
 	rel, err := filepath.Rel("data/images", path)
 
