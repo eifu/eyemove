@@ -562,11 +562,8 @@ func Binary(img image.Image) (*image.RGBA, []image.Point) {
 
 func (eye *eyeImage)CutoffRGBA()  {
 	rect := eye.MyRect
-	temp := &eyeImage{
-		MyRect : rect,
-		OriginalImage: eye.OriginalImage,
-		MyRGBA:image.NewRGBA(rect),
-	}
+	temp := image.NewRGBA(rect)
+	
 	var acc, ave, c0 uint32
 
 	for y := 0; y < rect.Max.Y; y++ {
@@ -581,13 +578,13 @@ func (eye *eyeImage)CutoffRGBA()  {
 		for x := 0; x < rect.Max.X; x++ {
 			c0, _, _, _ = eye.MyRGBA.At(x, y).RGBA()
 			if c0&0xFF > ave {
-				temp.MyRGBA.Set(x, y, color.Gray{uint8(ave)})
+				temp.Set(x, y, color.Gray{uint8(ave)})
 			} else {
-				temp.MyRGBA.Set(x, y, color.Gray{uint8(c0)})
+				temp.Set(x, y, color.Gray{uint8(c0)})
 			}
 		}
 	}
-	eye.MyRGBA = temp.MyRGBA
+	eye.MyRGBA = temp
 }
 
 func ExpandRGBA(img image.Image) *image.RGBA {
