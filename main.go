@@ -13,11 +13,6 @@ import (
 func main() {
 	flag.Parse()
 	root := flag.Arg(0)
-	
-	info, err := os.Lstat(root)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	f, err := os.Open(root)
 	if err != nil{
@@ -30,11 +25,23 @@ func main() {
 		log.Fatal(err)
 	}
 
+	log.Println(len(names))
+
+	var path_chan chan string
+
+	go func(){
+		for _, e := range names[:10]{
+			path_chan <- e
+		}
+	}()
+
+	submain(path_chan)
+
 
 }
 
-func submain(path chan string) error {
-
+func submain(path_chan chan string) error {
+	var path string = <-path_chan
 	log.Println(path + "is loading...")
 	infile, err := os.Open(path)
 	defer infile.Close()
