@@ -13,31 +13,36 @@ import (
 func main() {
 	flag.Parse()
 	root := flag.Arg(0)
-	err := filepath.Walk(root, submain)
+	
+	info, err := os.Lstat(root)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	f, err := os.Open(root)
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	// names has all the files from the directory
+	names, err := f.Readdirnames(-1)
+	if err != nil{
+		log.Fatal(err)
+	}
+
+
 }
 
-func submain(path string, info os.FileInfo, err error) error {
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	if info.IsDir() {
-		return nil
-	}
-
-
+func submain(path chan string) error {
 
 	log.Println(path + "is loading...")
 	infile, err := os.Open(path)
 	defer infile.Close()
-
 	if err != nil {
 		log.Printf("main open file :%v\n", err)
 		return err
 	}
+
 	img, _, err := image.Decode(infile)
 	if err != nil {
 		log.Printf("main read file :%v\n", err)
@@ -63,10 +68,10 @@ func submain(path string, info os.FileInfo, err error) error {
 	rel, err := filepath.Rel("data/images", path)
 
 	outfile, err := os.Create("result/" + "test__" + rel)
+	defer outfile.Close()
 	if err != nil {
 		return err
 	}
-	defer outfile.Close()
 
 	if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
 		log.Printf("main write file :%v\n", err)
