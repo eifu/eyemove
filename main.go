@@ -3,6 +3,7 @@ package main
 import (
 	"./manaco"
 	"flag"
+	"sync"
 	"image"
 	"image/png"
 	"log"
@@ -24,29 +25,24 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	log.Println(len(names))
-
-	// path_chan := make(chan string)
-
-	c := gen(names)
-
-	go submain(c)
+	Concurrent(names)
 }
 
-func gen(nums []string) <-chan string {
-    out := make(chan string)
-    go func() {
-        for _, n := range nums {
-            out <- n
-        }
-        close(out)
-    }()
-    return out
+
+func Convolve(names []string)  {
+    wg := new(sync.WaitGroup)
+    wg.Add(len(names))
+    for _, e := range names{
+        go func(e string) {
+            oneFlame(e)
+            wg.Done()
+        }(e)
+    }
+    wg.Wait()
+    return
 }
 
-func submain(in <-chan string) error {
-	for path := range in {
+func oneFlame(path string) error {
 		log.Println(path + "is loading...")
 		path = "data/images/" + path
 		infile, err := os.Open(path)
@@ -91,6 +87,5 @@ func submain(in <-chan string) error {
 			return err
 		}
 		return nil
-	}
-	return nil
+
 }
