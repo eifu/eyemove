@@ -25,18 +25,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	Concurrent(names)
+	Concurrent(names[:120])
 }
 
+func mini(wg *sync.WaitGroup, s string){
+	oneFlame(s)
+	wg.Done()
+}
 
-func Convolve(names []string)  {
+func Concurrent(names []string)  {
     wg := new(sync.WaitGroup)
     wg.Add(len(names))
-    for _, e := range names{
-        go func(e string) {
-            oneFlame(e)
-            wg.Done()
-        }(e)
+
+    name1 := names[:len(names)/3]
+    name2 := names[len(names)/3:2*len(names)/3]
+    name3 := names[2*len(names)/3:len(names)]
+
+    for i := 0; i < len(names)/3 ; i ++{
+        go mini(wg, name1[i])
+
+        go mini(wg, name2[i])
+
+        go mini(wg, name3[i])
     }
     wg.Wait()
     return
