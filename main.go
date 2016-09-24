@@ -15,74 +15,82 @@ func main() {
 	root := flag.Arg(0)
 
 	f, err := os.Open(root)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	// names has all the files from the directory
 	names, err := f.Readdirnames(-1)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Println(len(names))
 
-	var path_chan chan string
+	// path_chan := make(chan string)
 
-	go func(){
-		for _, e := range names[:10]{
-			path_chan <- e
-		}
-	}()
+	c := gen(names)
 
-	submain(path_chan)
-
-
+	go submain(c)
 }
 
-func submain(path_chan chan string) error {
-	var path string = <-path_chan
-	log.Println(path + "is loading...")
-	infile, err := os.Open(path)
-	defer infile.Close()
-	if err != nil {
-		log.Printf("main open file :%v\n", err)
-		return err
-	}
+func gen(nums []string) <-chan string {
+    out := make(chan string)
+    go func() {
+        for _, n := range nums {
+            out <- n
+        }
+        close(out)
+    }()
+    return out
+}
 
-	img, _, err := image.Decode(infile)
-	if err != nil {
-		log.Printf("main read file :%v\n", err)
-		return err
-	}
+func submain(in <-chan string) error {
+	for path := range in {
+		log.Println(path + "is loading...")
+		path = "data/images/" + path
+		infile, err := os.Open(path)
+		defer infile.Close()
+		if err != nil {
+			log.Printf("main open file :%v\n", err)
+			return err
+		}
 
-	eye_image := manaco.InitEyeImage(&img)
+		img, _, err := image.Decode(infile)
+		if err != nil {
+			log.Printf("main read file :%v\n", err)
+			return err
+		}
 
-	eye_image.GaussianFilter()
+		eye_image := manaco.InitEyeImage(&img)
 
-	eye_image.CutoffRGBA()
+		eye_image.GaussianFilter()
 
-	eye_image.Sobel(2)
+		eye_image.CutoffRGBA()
 
-	w := eye_image.Binary()
+		eye_image.Sobel(2)
 
-	eye_image.Hough(w)
+		w := eye_image.Binary()
 
-	for i := 0; i < len(eye_image.MyRadius); i++{	
-		eye_image.DrawCircle(i)	
-	}
+		eye_image.Hough(w)
 
-	rel, err := filepath.Rel("data/images", path)
+		for i := 0; i < len(eye_image.MyRadius); i++ {
+			eye_image.DrawCircle(i)
+		}
 
-	outfile, err := os.Create("result/" + "test__" + rel)
-	defer outfile.Close()
-	if err != nil {
-		return err
-	}
+		rel, err := filepath.Rel("data/images", path)
 
-	if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
-		log.Printf("main write file :%v\n", err)
-		return err
+		outfile, err := os.Create("result/" + "test__" + rel)
+		defer outfile.Close()
+		if err != nil {
+			return err
+		}
+
+		if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
+			log.Printf("main write file :%v\n", err)
+			return err
+		}
+		return nil
 	}
 	return nil
 }
