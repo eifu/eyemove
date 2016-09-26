@@ -7,6 +7,8 @@ import (
 	_ "image/jpeg"
 	"log"
 	"math"
+	"regexp"
+	"strconv"
 )
 
 const (
@@ -14,6 +16,7 @@ const (
 )
 
 type EyeImage struct {
+	MyName        int             `json:"MyName"`
 	MyRect        image.Rectangle `json:"MyRect"`
 	OriginalImage *image.Image    `json:"-"`
 	MyRGBA        *image.RGBA     `json:"-"`
@@ -21,15 +24,25 @@ type EyeImage struct {
 	MyRadius      []int           `json:"MyRadius"`
 }
 
-func InitEyeImage(img *image.Image) *EyeImage {
+func InitEyeImage(img *image.Image, name string) *EyeImage {
 	m := image.NewRGBA((*img).Bounds())
 	for y := 0; y < m.Bounds().Max.Y; y++ {
 		for x := 0; x < m.Bounds().Max.X; x++ {
 			m.Set(x, y, (*img).At(x, y))
 		}
 	}
+	r, err := regexp.Compile("([0-9]*)+.jpg")
+	if err != nil {
+		panic(err)
+	}
+	prefix := r.FindStringIndex(name)
 
+	myname, err := strconv.Atoi(name[prefix[0] : prefix[1]-4])
+	if err != nil {
+		panic(err)
+	}
 	return &EyeImage{
+		MyName:        myname,
 		MyRect:        (*img).Bounds(),
 		OriginalImage: img,
 		MyRGBA:        m,
@@ -152,25 +165,6 @@ func (eye *EyeImage) Hough(w []image.Point) {
 		}
 	}
 
-	// TODO: best 2 is arbitrary
-	// accm0, accm1: best 2 accumulation maximums
-	// cd0, cd1: best 2 candidates of radious
-	// var cd0, cd1, accm0, accm1 int
-
-	// for _, e := range cc {
-	// 	if accm0 < maxl[e] {
-	// 		tmp = accm0
-	// 		accm0 = maxl[e]
-	// 		accm1 = tmp
-	// 		tmp = cd0
-	// 		cd0 = e
-	// 		cd1 = tmp
-	// 	} else if accm1 < maxl[e] {
-	// 		accm1 = maxl[e]
-	// 		cd1 = e
-	// 	}
-	// }
-
 	for _, e := range cc {
 		eye.MyRadius = append(eye.MyRadius, e+MinEyeR)
 		eye.MyCenter = append(eye.MyCenter, cntl[e])
@@ -182,33 +176,6 @@ func (eye *EyeImage) Hough(w []image.Point) {
 			eye.MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
 		}
 	}
-
-	// // determine which one has more black pixels than the other
-	// var acc0, acc1 uint32
-	// x0, y0, x1, y1 = cntl[cd0].X, cntl[cd0].Y, cntl[cd1].X, cntl[cd1].Y
-	// r0, r1 := (cd0+MinEyeR)*(cd0+MinEyeR), (cd1+MinEyeR)*(cd1+MinEyeR)
-
-	// for y := 0; y < height; y++ {
-	// 	for x := 0; x < width; x++ {
-	// 		if (x-x0)*(x-x0)+(y-y0)*(y-y0) < r0 {
-	// 			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-	// 			acc0 += c & 0xFF
-	// 		}
-	// 		if (x-x1)*(x-x1)+(y-y1)*(y-y1) < r1 {
-	// 			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-	// 			acc1 += c & 0xFF
-	// 		}
-	// 	}
-	// }
-	// dens0, dens1 := float64(acc0)/(float64(r0)*math.Pi), float64(acc1)/(float64(r1)*math.Pi)
-	// if dens0 < dens1 {
-	// 	eye.MyCenter = cntl[cd0]
-	// 	eye.MyRadius = cd0 + MinEyeR
-	// } else {
-	// 	eye.MyCenter = cntl[cd1]
-	// 	eye.MyRadius = cd1 + MinEyeR
-	// }
-
 }
 
 func (eye *EyeImage) DrawCircle(i int) {

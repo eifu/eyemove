@@ -2,11 +2,11 @@ package main
 
 import (
 	"./manaco"
+	"encoding/json"
 	"flag"
 	"image"
 	"log"
 	"os"
-	"encoding/json"
 	"sync"
 )
 
@@ -33,17 +33,16 @@ func main() {
 	log.Println(string(json_data))
 
 	f, err := os.Create("hi.json")
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
 	n, err := f.Write(json_data)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	log.Printf("Wrote %d bytes\n", n)
-
 
 }
 
@@ -52,11 +51,11 @@ func Concurrent(names []string) []*manaco.EyeImage {
 	wg.Add(4)
 
 	final := make([]*manaco.EyeImage, len(names))
-	
+
 	size := len(names)
 	for i := 0; i < 4; i++ {
-		n := names[i*size/4:(i+1)*size/4]
-		f := final[i*size/4:(i+1)*size/4]
+		n := names[i*size/4 : (i+1)*size/4]
+		f := final[i*size/4 : (i+1)*size/4]
 		go oneQuarter(wg, &n, &f)
 	}
 
@@ -78,9 +77,9 @@ func oneQuarter(wg *sync.WaitGroup, names *[]string, result *[]*manaco.EyeImage)
 	return
 }
 
-func oneFlame(path string) (*manaco.EyeImage, error) {
+func oneFlame(filename string) (*manaco.EyeImage, error) {
+	path := "data/images/" + filename
 	log.Println(path + "is loading...")
-	path = "data/images/" + path
 	infile, err := os.Open(path)
 	defer infile.Close()
 	if err != nil {
@@ -94,7 +93,7 @@ func oneFlame(path string) (*manaco.EyeImage, error) {
 		return nil, err
 	}
 
-	eye_image := manaco.InitEyeImage(&img)
+	eye_image := manaco.InitEyeImage(&img, filename)
 
 	eye_image.GaussianFilter()
 
