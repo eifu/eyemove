@@ -25,32 +25,37 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	Concurrent(names[:120])
-}
-
-func mini(wg *sync.WaitGroup, s string){
-	oneFlame(s)
-	wg.Done()
+	Concurrent(names[:12])
 }
 
 func Concurrent(names []string)  {
     wg := new(sync.WaitGroup)
-    wg.Add(len(names))
+    wg.Add(4)
 
-    name1 := names[:len(names)/3]
-    name2 := names[len(names)/3:2*len(names)/3]
-    name3 := names[2*len(names)/3:len(names)]
+    name1 := names[:len(names)/4]
+    name2 := names[len(names)/4:2*len(names)/4]
+    name3 := names[2*len(names)/4:3*len(names)/4]
+    name4 := names[3*len(names)/4:]
 
-    for i := 0; i < len(names)/3 ; i ++{
-        go mini(wg, name1[i])
+    go onethird(wg, name1)
+    go onethird(wg, name2)
+    go onethird(wg, name3)
+    go onethird(wg, name4)
 
-        go mini(wg, name2[i])
-
-        go mini(wg, name3[i])
-    }
     wg.Wait()
     return
 }
+
+func onethird(wg *sync.WaitGroup, names []string){
+	wg2 := new(sync.WaitGroup)
+	wg2.Add(len(names))
+	for _, e := range names{
+		oneFlame(e)
+		wg2.Done()
+	}
+	wg2.Wait()
+	wg.Done()
+}	
 
 func oneFlame(path string) error {
 		log.Println(path + "is loading...")
