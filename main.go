@@ -37,10 +37,12 @@ func Concurrent(names []string) []*manaco.EyeImage {
     name3 := names[2*len(names)/4:3*len(names)/4]
     name4 := names[3*len(names)/4:]
 
-    result1 := make([]*manaco.EyeImage, len(name1))
-    result2 := make([]*manaco.EyeImage, len(name2))
-    result3 := make([]*manaco.EyeImage, len(name3))
-    result4 := make([]*manaco.EyeImage, len(name4))
+    final := make([]*manaco.EyeImage, len(names))
+
+    result1 := final[:len(names)]
+    result2 := final[len(names)/4:2*len(names)/4]
+    result3 := final[2*len(names)/4:3*len(names)/4]
+    result4 := final[3*len(names)/4:]
 
     go onethird(wg, name1, &result1)
     go onethird(wg, name2, &result2)
@@ -49,11 +51,6 @@ func Concurrent(names []string) []*manaco.EyeImage {
 
     wg.Wait()
 
-    final := make([]*manaco.EyeImage, len(names))
-    copy(final[:len(result1)], result1)
-    copy(final[len(result1):len(result2)], result2)
-    copy(final[len(result2):len(result3)], result3)
-    copy(final[len(result3):], result4)
 
 
     return final
