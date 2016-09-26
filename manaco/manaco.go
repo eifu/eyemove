@@ -13,7 +13,7 @@ const (
 	MinEyeR = 10
 )
 
-type eyeImage struct {
+type EyeImage struct {
 	MyRect        image.Rectangle
 	OriginalImage *image.Image
 	MyRGBA        *image.RGBA
@@ -21,7 +21,7 @@ type eyeImage struct {
 	MyRadius      []int
 }
 
-func InitEyeImage(img *image.Image) *eyeImage {
+func InitEyeImage(img *image.Image) *EyeImage {
 	m := image.NewRGBA((*img).Bounds())
 	for y := 0; y < m.Bounds().Max.Y; y++ {
 		for x := 0; x < m.Bounds().Max.X; x++ {
@@ -29,14 +29,14 @@ func InitEyeImage(img *image.Image) *eyeImage {
 		}
 	}
 
-	return &eyeImage{
+	return &EyeImage{
 		MyRect:        (*img).Bounds(),
 		OriginalImage: img,
 		MyRGBA:        m,
 	}
 }
 
-func (eye *eyeImage) Hough(w []image.Point) {
+func (eye *EyeImage) Hough(w []image.Point) {
 	rect := eye.MyRect
 	var c uint32
 	var rad, rf float64
@@ -211,7 +211,7 @@ func (eye *eyeImage) Hough(w []image.Point) {
 
 }
 
-func (eye *eyeImage) DrawCircle(i int) {
+func (eye *EyeImage) DrawCircle(i int) {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
 	var red,g,b uint32
@@ -269,9 +269,9 @@ func (eye *eyeImage) DrawCircle(i int) {
 	eye.MyRGBA = temp
 }
 
-func (eye *eyeImage) GaussianFilter() {
+func (eye *EyeImage) GaussianFilter() {
 
-	temp := &eyeImage{
+	temp := &EyeImage{
 		MyRect:        eye.MyRect,
 		OriginalImage: eye.OriginalImage,
 		MyRGBA:        image.NewRGBA(eye.MyRect),
@@ -380,7 +380,7 @@ func conv1d2(a []uint32) uint8 {
 	return uint8(f0)
 }
 
-func (eye *eyeImage) Binary() []image.Point {
+func (eye *EyeImage) Binary() []image.Point {
 	rect := eye.MyRect
 	width, height := rect.Max.X, rect.Max.Y
 	clr := make([]uint32, width*height)
@@ -411,7 +411,7 @@ func (eye *eyeImage) Binary() []image.Point {
 	return w
 }
 
-func (eye *eyeImage) CutoffRGBA() {
+func (eye *EyeImage) CutoffRGBA() {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
 
@@ -473,7 +473,7 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
-func (eye *eyeImage) Sobel(w float64) {
+func (eye *EyeImage) Sobel(w float64) {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
 	var sum, gx, gy float64
@@ -490,7 +490,7 @@ func (eye *eyeImage) Sobel(w float64) {
 	eye.MyRGBA = temp
 }
 
-func (eye *eyeImage) sb_helper(x, y int, w float64) (float64, float64) {
+func (eye *EyeImage) sb_helper(x, y int, w float64) (float64, float64) {
 	rect := eye.MyRect
 	var accY, accX float64
 	var c uint32
@@ -524,6 +524,6 @@ func (eye *eyeImage) sb_helper(x, y int, w float64) (float64, float64) {
 	return accY, accX
 }
 
-func (eye *eyeImage) Prewitt() {
+func (eye *EyeImage) Prewitt() {
 	eye.Sobel(1)
 }

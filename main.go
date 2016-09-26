@@ -5,10 +5,8 @@ import (
 	"flag"
 	"sync"
 	"image"
-	"image/png"
 	"log"
 	"os"
-	"path/filepath"
 )
 
 func main() {
@@ -25,10 +23,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	Concurrent(names[:12])
+	a := Concurrent(names[:12])
+
+	log.Println(a)
 }
 
-func Concurrent(names []string)  {
+func Concurrent(names []string) []*manaco.EyeImage {
     wg := new(sync.WaitGroup)
     wg.Add(4)
 
@@ -37,40 +37,55 @@ func Concurrent(names []string)  {
     name3 := names[2*len(names)/4:3*len(names)/4]
     name4 := names[3*len(names)/4:]
 
-    go onethird(wg, name1)
-    go onethird(wg, name2)
-    go onethird(wg, name3)
-    go onethird(wg, name4)
+    result1 := make([]*manaco.EyeImage, len(name1))
+    result2 := make([]*manaco.EyeImage, len(name2))
+    result3 := make([]*manaco.EyeImage, len(name3))
+    result4 := make([]*manaco.EyeImage, len(name4))
+
+    go onethird(wg, name1, &result1)
+    go onethird(wg, name2, &result2)
+    go onethird(wg, name3, &result3)
+    go onethird(wg, name4, &result4)
 
     wg.Wait()
-    return
+
+    final := make([]*manaco.EyeImage, len(names))
+    copy(final[:len(result1)], result1)
+    copy(final[len(result1):len(result2)], result2)
+    copy(final[len(result2):len(result3)], result3)
+    copy(final[len(result3):], result4)
+
+
+    return final
 }
 
-func onethird(wg *sync.WaitGroup, names []string){
+func onethird(wg *sync.WaitGroup, names []string, result *[]*manaco.EyeImage) {
 	wg2 := new(sync.WaitGroup)
 	wg2.Add(len(names))
-	for _, e := range names{
-		oneFlame(e)
+
+	for i, e := range names{
+		(*result)[i], _ = oneFlame(e)
 		wg2.Done()
 	}
 	wg2.Wait()
 	wg.Done()
+	return 
 }	
 
-func oneFlame(path string) error {
+func oneFlame(path string) (*manaco.EyeImage, error) {
 		log.Println(path + "is loading...")
 		path = "data/images/" + path
 		infile, err := os.Open(path)
 		defer infile.Close()
 		if err != nil {
 			log.Printf("main open file :%v\n", err)
-			return err
+			return nil, err
 		}
 
 		img, _, err := image.Decode(infile)
 		if err != nil {
 			log.Printf("main read file :%v\n", err)
-			return err
+			return nil, err
 		}
 
 		eye_image := manaco.InitEyeImage(&img)
@@ -85,22 +100,22 @@ func oneFlame(path string) error {
 
 		eye_image.Hough(w)
 
-		for i := 0; i < len(eye_image.MyRadius); i++ {
-			eye_image.DrawCircle(i)
-		}
+		// for i := 0; i < len(eye_image.MyRadius); i++ {
+		// 	eye_image.DrawCircle(i)
+		// }
 
-		rel, err := filepath.Rel("data/images", path)
+		// rel, err := filepath.Rel("data/images", path)
 
-		outfile, err := os.Create("result/" + "test__" + rel)
-		defer outfile.Close()
-		if err != nil {
-			return err
-		}
+		// outfile, err := os.Create("result/" + "test__" + rel)
+		// defer outfile.Close()
+		// if err != nil {
+		// 	return err
+		// }
 
-		if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
-			log.Printf("main write file :%v\n", err)
-			return err
-		}
-		return nil
+		// if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
+		// 	log.Printf("main write file :%v\n", err)
+		// 	return err
+		// }
+		return eye_image, nil
 
 }
