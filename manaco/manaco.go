@@ -14,11 +14,11 @@ const (
 )
 
 type EyeImage struct {
-	MyRect        image.Rectangle
-	OriginalImage *image.Image
-	MyRGBA        *image.RGBA
-	MyCenter      []image.Point
-	MyRadius      []int
+	MyRect        image.Rectangle  `json:"MyRect"`
+	OriginalImage *image.Image  `json:"-"`
+	MyRGBA        *image.RGBA  `json:"-"`
+	MyCenter      []image.Point  `json:"MyCenter"`
+	MyRadius      []int  `json:"MyRadius"`
 }
 
 func InitEyeImage(img *image.Image) *EyeImage {

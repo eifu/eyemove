@@ -6,6 +6,7 @@ import (
 	"image"
 	"log"
 	"os"
+	"encoding/json"
 	"sync"
 )
 
@@ -26,6 +27,10 @@ func main() {
 	a := Concurrent(names[:13])
 
 	log.Println(a)
+
+	json_data, _ := json.Marshal(a[0])
+
+	log.Println(json_data)
 }
 
 func Concurrent(names []string) []*manaco.EyeImage {
