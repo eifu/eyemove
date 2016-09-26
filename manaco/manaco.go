@@ -14,11 +14,11 @@ const (
 )
 
 type EyeImage struct {
-	MyRect        image.Rectangle  `json:"MyRect"`
-	OriginalImage *image.Image  `json:"-"`
-	MyRGBA        *image.RGBA  `json:"-"`
-	MyCenter      []image.Point  `json:"MyCenter"`
-	MyRadius      []int  `json:"MyRadius"`
+	MyRect        image.Rectangle `json:"MyRect"`
+	OriginalImage *image.Image    `json:"-"`
+	MyRGBA        *image.RGBA     `json:"-"`
+	MyCenter      []image.Point   `json:"MyCenter"`
+	MyRadius      []int           `json:"MyRadius"`
 }
 
 func InitEyeImage(img *image.Image) *EyeImage {
@@ -171,7 +171,7 @@ func (eye *EyeImage) Hough(w []image.Point) {
 	// 	}
 	// }
 
-	for _, e := range cc{
+	for _, e := range cc {
 		eye.MyRadius = append(eye.MyRadius, e+MinEyeR)
 		eye.MyCenter = append(eye.MyCenter, cntl[e])
 	}
@@ -214,7 +214,7 @@ func (eye *EyeImage) Hough(w []image.Point) {
 func (eye *EyeImage) DrawCircle(i int) {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
-	var red,g,b uint32
+	var red, g, b uint32
 	var deg, rad, x0, y0, x1, y1 float64
 
 	cnt := eye.MyCenter[i]
@@ -479,7 +479,7 @@ func (eye *EyeImage) Sobel(w float64) {
 	var sum, gx, gy float64
 	for j := 0; j < rect.Max.Y; j++ {
 		for i := 0; i < rect.Max.X; i++ {
-			gy, gx = eye.sb_helper( i, j, w)
+			gy, gx = eye.sb_helper(i, j, w)
 			sum = math.Sqrt(gx*gx + gy*gy)
 			if sum > 255 {
 				sum = 255
@@ -496,7 +496,7 @@ func (eye *EyeImage) sb_helper(x, y int, w float64) (float64, float64) {
 	var c uint32
 	for j := y - 1; j < y+2; j++ {
 		for i := x - 1; i < x+2; i++ {
-			if (image.Point{i, j}.In(rect)){
+			if (image.Point{i, j}.In(rect)) {
 				c, _, _, _ = eye.MyRGBA.At(i, j).RGBA()
 				switch {
 				case i == x-1 && j != y:

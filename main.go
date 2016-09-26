@@ -14,13 +14,13 @@ func main() {
 	flag.Parse()
 	root := flag.Arg(0)
 
-	f, err := os.Open(root)
+	dir_data, err := os.Open(root)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// names has all the files from the directory
-	names, err := f.Readdirnames(-1)
+	names, err := dir_data.Readdirnames(-1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,9 +28,23 @@ func main() {
 
 	log.Println(a)
 
-	json_data, _ := json.Marshal(a[0])
+	json_data, _ := json.Marshal(a)
 
-	log.Println(json_data)
+	log.Println(string(json_data))
+
+	f, err := os.Create("hi.json")
+	if err != nil{
+		panic(err)
+	}
+	defer f.Close()
+
+	n, err := f.Write(json_data)
+	if err != nil{
+		panic(err)
+	}
+	log.Printf("Wrote %d bytes\n", n)
+
+
 }
 
 func Concurrent(names []string) []*manaco.EyeImage {
