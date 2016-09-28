@@ -99,7 +99,7 @@ type Reader struct {
 //
 // It is valid to call Next even if all of the previous chunk's data has not
 // been read.
-func (z *Reader) Next() (chunkID FourCC, chunkLen uint32, chunkData io.Reader, err error) {
+func (z *Reader) Next() ( FourCC, chunkLen uint32, chunkData io.Reader, err error) {
 	if z.err != nil {
 		return FourCC{}, 0, nil, z.err
 	}
@@ -109,48 +109,47 @@ func (z *Reader) Next() (chunkID FourCC, chunkLen uint32, chunkData io.Reader, e
 		want := z.chunkLen
 		var got int64
 		got, z.err = io.Copy(ioutil.Discard, z.chunkReader)
-		if z.err == nil && uint32(got) != want {
-			z.err = errShortChunkData
-		}
 		if z.err != nil {
 			return FourCC{}, 0, nil, z.err
+		}		
+		if uint32(got) != want {
+			z.err = errShortChunkData
 		}
 	}
 	z.chunkReader = nil
-	if z.padded {
+	if z.padded {  // what is padded??
 		if z.totalLen == 0 {
 			z.err = errListSubchunkTooLong
 			return FourCC{}, 0, nil, z.err
 		}
 		z.totalLen--
-		_, z.err = io.ReadFull(z.r, z.buf[:1])
-		if z.err != nil {
+		
+		if _, z.err = io.ReadFull(z.r, z.buf[:1]); z.err != nil {
 			if z.err == io.EOF {
-				z.err = errMissingPaddingByte
-			}
+				z.err = errMissingPaddingByte  // what is padding byte??
+			}  
 			return FourCC{}, 0, nil, z.err
 		}
 	}
 
 	// We are done if we have no more data.
 	if z.totalLen == 0 {
-		z.err = io.EOF
-		return FourCC{}, 0, nil, z.err
+		return FourCC{}, 0, nil, io.EOF
 	}
 
 	// Read the next chunk header.
 	if z.totalLen < chunkHeaderSize {
-		z.err = errShortChunkHeader
-		return FourCC{}, 0, nil, z.err
+		return FourCC{}, 0, nil, errShortChunkHeader
 	}
 	z.totalLen -= chunkHeaderSize
+
 	if _, z.err = io.ReadFull(z.r, z.buf[:chunkHeaderSize]); z.err != nil {
 		if z.err == io.EOF || z.err == io.ErrUnexpectedEOF {
 			z.err = errShortChunkHeader
 		}
 		return FourCC{}, 0, nil, z.err
 	}
-	chunkID = FourCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}
+	chunkID := FourCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}
 	z.chunkLen = u32(z.buf[4:])
 	if z.chunkLen > z.totalLen {
 		z.err = errListSubchunkTooLong
