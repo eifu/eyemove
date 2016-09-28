@@ -44,35 +44,40 @@ var LIST = FourCC{'L', 'I', 'S', 'T'}
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func NewReader(r io.Reader) (formType FourCC, data *Reader, err error) {
-	var buf [chunkHeaderSize]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+func NewReader(r io.Reader) (FourCC, *Reader, error) {
+	buf := make([]byte, chunkHeaderSize)
+	// 
+	if _, err := io.ReadFull(r, buf[:]); err != nil { 
+		if err == io.EOF || err == io.ErrUnexpectedEOF {  // there must be 'RIFF' value in front. 
 			err = errMissingRIFFChunkHeader
 		}
 		return FourCC{}, nil, err
 	}
-	if buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' || buf[3] != 'F' {
+	if buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' || buf[3] != 'F' {  // make sure the first 4 letters are 'RIFF'
 		return FourCC{}, nil, errMissingRIFFChunkHeader
 	}
-	return NewListReader(u32(buf[4:]), r)
+
+	return NewListReader(u32(buf[4:]), r)  // return the size of data and the rest of data.
 }
 
 // NewListReader returns a LIST chunk's list type, such as "movi" or "wavl",
 // and its chunks as a *Reader.
-func NewListReader(chunkLen uint32, chunkData io.Reader) (listType FourCC, data *Reader, err error) {
+func NewListReader(chunkLen uint32, chunkData io.Reader) ( FourCC, *Reader, error) {
 	if chunkLen < 4 {
 		return FourCC{}, nil, errShortChunkData
 	}
-	z := &Reader{r: chunkData}
-	if _, err := io.ReadFull(chunkData, z.buf[:4]); err != nil {
+	data := &Reader{r: chunkData}
+
+	if _, err := io.ReadFull(chunkData, data.buf[:4]); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortChunkData
 		}
 		return FourCC{}, nil, err
 	}
-	z.totalLen = chunkLen - 4
-	return FourCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}, z, nil
+	listType := FourCC{data.buf[0], data.buf[1], data.buf[2], data.buf[3]}
+
+	data.totalLen = chunkLen - 4  // totalLen is the size of data after listType('avi '') 
+	return listType, data, nil
 }
 
 // Reader reads chunks from an underlying io.Reader.
