@@ -1,3 +1,5 @@
+
+
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -99,7 +101,7 @@ type Reader struct {
 //
 // It is valid to call Next even if all of the previous chunk's data has not
 // been read.
-func (z *Reader) Next() ( FourCC, chunkLen uint32, chunkData io.Reader, err error) {
+func (z *Reader) Next() ( FourCC, uint32,  io.Reader, error) {
 	if z.err != nil {
 		return FourCC{}, 0, nil, z.err
 	}
@@ -125,7 +127,7 @@ func (z *Reader) Next() ( FourCC, chunkLen uint32, chunkData io.Reader, err erro
 		z.totalLen--
 		
 		if _, z.err = io.ReadFull(z.r, z.buf[:1]); z.err != nil {
-			if z.err == io.EOF {
+			if z.err == io.EOF {  // are there any case that z.err == io.ErrUnexpectedEOF??
 				z.err = errMissingPaddingByte  // what is padding byte??
 			}  
 			return FourCC{}, 0, nil, z.err
@@ -152,8 +154,7 @@ func (z *Reader) Next() ( FourCC, chunkLen uint32, chunkData io.Reader, err erro
 	chunkID := FourCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}
 	z.chunkLen = u32(z.buf[4:])
 	if z.chunkLen > z.totalLen {
-		z.err = errListSubchunkTooLong
-		return FourCC{}, 0, nil, z.err
+		return FourCC{}, 0, nil, errListSubchunkTooLong
 	}
 	z.padded = z.chunkLen&1 == 1
 	z.chunkReader = &chunkReader{z}
