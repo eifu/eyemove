@@ -1,18 +1,5 @@
-
-
-// Copyright 2014 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Package riff implements the Resource Interchange File Format, used by media
-// formats such as AVI, WAVE and WEBP.
-//
-// A RIFF stream contains a sequence of chunks. Each chunk consists of an 8-byte
-// header (containing a 4-byte chunk type and a 4-byte chunk length), the chunk
-// data (presented as an io.Reader), and some padding bytes.
-//
 // A detailed description of the format is at
-// http://www.tactilemedia.com/info/MCI_Control_Info.html
+// https://msdn.microsoft.com/en-us/library/ms779636.aspx
 package avi
 
 import (
@@ -32,41 +19,74 @@ var (
 )
 
 // u32 decodes the first four bytes of b as a little-endian integer.
-func u32(b []byte) uint32 {
+func decodeU32(b []byte) uint32 {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
 const chunkHeaderSize = 8
 
 // FourCC is a four character code.
-type FourCC [4]byte
+type FOURCC [4]byte
 
-// LIST is the "LIST" FourCC.
-var LIST = FourCC{'L', 'I', 'S', 'T'}
+type avi struct {
+	fileSize ckSize
+	fileType FOURCC
+	data     []byte
+}
+
+type ckID FOURCC    // ckID is a FOURCC that identifies the data contained in the chunk.
+type ckSize [4]byte // ckSize is a 4-byte value giving the size of the data in ckData.
+type ckData []byte  // ckData is zero or more bytes of data.
+
+type listSize [4]byte
+type listType FOURCC
+type listData []byte
+
+var (
+	AVI  = FOURCC{'A', 'V', 'I', ' '}
+	LIST = FOURCC{'L', 'I', 'S', 'T'}
+	hdrl = FOURCC{'h', 'd', 'r', 'l'}
+	avih = FOURCC{'a', 'v', 'i', 'h'}
+	strl = FOURCC{'s', 't', 'r', 'l'}
+	strh = FOURCC{'s', 't', 'r', 'h'}
+	strn = FOURCC{'s', 't', 'r', 'n'}
+	movi = FOURCC{'m', 'o', 'v', 'i'}
+	rec  = FOURCC{'r', 'e', 'c', ' '}
+	idx1 = FOURCC{'i', 'd', 'x', '1'}
+)
+
+func equal(a, b FOURCC) bool {
+	if a[0] != b[0] || a[1] != b[1] || a[2] != b[2] || a[3] != b[3]{
+		return false
+	}
+	return true
+}
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func NewReader(r io.Reader) (FourCC, *Reader, error) {
-	buf := make([]byte, chunkHeaderSize)
-	// 
-	if _, err := io.ReadFull(r, buf[:]); err != nil { 
-		if err == io.EOF || err == io.ErrUnexpectedEOF {  // there must be 'RIFF' value in front. 
+func HeadReader(r io.Reader) (FOURCC, *Reader, error) {
+	buf := make(FOURCC)
+
+	// Make sure that io.Reader has enough stuff to read.
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errMissingRIFFChunkHeader
 		}
-		return FourCC{}, nil, err
+		return FOURCC{}, nil, err
 	}
-	if buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' || buf[3] != 'F' {  // make sure the first 4 letters are 'RIFF'
-		return FourCC{}, nil, errMissingRIFFChunkHeader
+	// Make sure the first FOURCC lieral is 'RIFF'
+	if buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' || buf[3] != 'F' {
+		return FOURCC{}, nil, errMissingRIFFChunkHeader
 	}
 
-	return NewListReader(u32(buf[4:]), r)  // return the size of data and the rest of data.
+	return ListReader(decodeU32(buf[4:]), r) // return the size of data and the rest of data.
 }
 
 // NewListReader returns a LIST chunk's list type, such as "movi" or "wavl",
 // and its chunks as a *Reader.
-func NewListReader(chunkLen uint32, chunkData io.Reader) ( FourCC, *Reader, error) {
+func ListReader(chunkLen uint32, chunkData io.Reader) (FOURCC, *Reader, error) {
 	if chunkLen < 4 {
-		return FourCC{}, nil, errShortChunkData
+		return FOURCC{}, nil, errShortChunkData
 	}
 	data := &Reader{r: chunkData}
 
@@ -74,11 +94,11 @@ func NewListReader(chunkLen uint32, chunkData io.Reader) ( FourCC, *Reader, erro
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortChunkData
 		}
-		return FourCC{}, nil, err
+		return FOURCC{}, nil, err
 	}
-	listType := FourCC{data.buf[0], data.buf[1], data.buf[2], data.buf[3]}
+	listType := FOURCC{data.buf[0], data.buf[1], data.buf[2], data.buf[3]}
 
-	data.totalLen = chunkLen - 4  // totalLen is the size of data after listType('avi '') 
+	data.totalLen = chunkLen - 4 // totalLen is the size of data after listType('avi '')
 	return listType, data, nil
 }
 
@@ -101,9 +121,9 @@ type Reader struct {
 //
 // It is valid to call Next even if all of the previous chunk's data has not
 // been read.
-func (z *Reader) Next() ( FourCC, uint32,  io.Reader, error) {
+func (z *Reader) Next() (FOURCC, uint32, io.Reader, error) {
 	if z.err != nil {
-		return FourCC{}, 0, nil, z.err
+		return FOURCC{}, 0, nil, z.err
 	}
 
 	// Drain the rest of the previous chunk.
@@ -112,36 +132,36 @@ func (z *Reader) Next() ( FourCC, uint32,  io.Reader, error) {
 		var got int64
 		got, z.err = io.Copy(ioutil.Discard, z.chunkReader)
 		if z.err != nil {
-			return FourCC{}, 0, nil, z.err
-		}		
+			return FOURCC{}, 0, nil, z.err
+		}
 		if uint32(got) != want {
 			z.err = errShortChunkData
 		}
 	}
 	z.chunkReader = nil
-	if z.padded {  // what is padded??
+	if z.padded { // what is padded??
 		if z.totalLen == 0 {
 			z.err = errListSubchunkTooLong
-			return FourCC{}, 0, nil, z.err
+			return FOURCC{}, 0, nil, z.err
 		}
 		z.totalLen--
-		
+
 		if _, z.err = io.ReadFull(z.r, z.buf[:1]); z.err != nil {
-			if z.err == io.EOF {  // are there any case that z.err == io.ErrUnexpectedEOF??
-				z.err = errMissingPaddingByte  // what is padding byte??
-			}  
-			return FourCC{}, 0, nil, z.err
+			if z.err == io.EOF { // are there any case that z.err == io.ErrUnexpectedEOF??
+				z.err = errMissingPaddingByte // what is padding byte??
+			}
+			return FOURCC{}, 0, nil, z.err
 		}
 	}
 
 	// We are done if we have no more data.
 	if z.totalLen == 0 {
-		return FourCC{}, 0, nil, io.EOF
+		return FOURCC{}, 0, nil, io.EOF
 	}
 
 	// Read the next chunk header.
 	if z.totalLen < chunkHeaderSize {
-		return FourCC{}, 0, nil, errShortChunkHeader
+		return FOURCC{}, 0, nil, errShortChunkHeader
 	}
 	z.totalLen -= chunkHeaderSize
 
@@ -149,12 +169,12 @@ func (z *Reader) Next() ( FourCC, uint32,  io.Reader, error) {
 		if z.err == io.EOF || z.err == io.ErrUnexpectedEOF {
 			z.err = errShortChunkHeader
 		}
-		return FourCC{}, 0, nil, z.err
+		return FOURCC{}, 0, nil, z.err
 	}
-	chunkID := FourCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}
-	z.chunkLen = u32(z.buf[4:])
+	chunkID := FOURCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}
+	z.chunkLen = decodeU32(z.buf[4:])
 	if z.chunkLen > z.totalLen {
-		return FourCC{}, 0, nil, errListSubchunkTooLong
+		return FOURCC{}, 0, nil, errListSubchunkTooLong
 	}
 	z.padded = z.chunkLen&1 == 1
 	z.chunkReader = &chunkReader{z}

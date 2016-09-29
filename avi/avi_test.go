@@ -24,7 +24,7 @@ func TestNewTestReader(t *testing.T){
 	s = append(s, []byte{50,56,62,16}...)
 	s = append(s, []byte{41,56,49,20}...)
 
-	fileType, r, err := NewReader(bytes.NewReader(s))
+	fileType, r, err := HeadReader(bytes.NewReader(s))
 	if err != nil{
 		t.Errorf(" %#v %s",s,err)
 	}
