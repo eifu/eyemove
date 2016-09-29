@@ -5,6 +5,7 @@ package avi
 import (
 	"errors"
 	"io"
+	"log"
 	"io/ioutil"
 	"math"
 )
@@ -28,36 +29,48 @@ const chunkHeaderSize = 8
 // FourCC is a four character code.
 type FOURCC [4]byte
 
+// 'RIFF' fileSize fileType (data)
+// fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
 type avi struct {
-	fileSize ckSize
+	fileSize [4]byte
 	fileType FOURCC
 	data     []byte
 }
 
-type ckID FOURCC    // ckID is a FOURCC that identifies the data contained in the chunk.
-type ckSize [4]byte // ckSize is a 4-byte value giving the size of the data in ckData.
-type ckData []byte  // ckData is zero or more bytes of data.
+// ckID ckSize ckData
+// ckSize includes size of ckData, but not include size of padding, ckID, ckSize 
+// The data is always padded to nearest WORD boundary.
+type chunk struct {
+	ckID   FOURCC
+	ckSize [4]byte
+	ckData []byte
+}
 
-type listSize [4]byte
-type listType FOURCC
-type listData []byte
+// 'LIST' listSize listType listData
+// listSize includes size of listType, listdata, but not include 'LIST', listSize
+type list struct {
+	listSize [4]byte
+	listType FOURCC
+	listData []byte
+}
 
 var (
-	RIFF = FOURCC{'R','I','F','F'}
+	RIFF = FOURCC{'R', 'I', 'F', 'F'}
 	AVI  = FOURCC{'A', 'V', 'I', ' '}
 	LIST = FOURCC{'L', 'I', 'S', 'T'}
 	hdrl = FOURCC{'h', 'd', 'r', 'l'}
-	avih = FOURCC{'a', 'v', 'i', 'h'}
+	avih = FOURCC{'a', 'v', 'i', 'h'}  // avih is the main AVI header
 	strl = FOURCC{'s', 't', 'r', 'l'}
 	strh = FOURCC{'s', 't', 'r', 'h'}
 	strn = FOURCC{'s', 't', 'r', 'n'}
+	vids = FOURCC{'v', 'i', 'd', 's'}
 	movi = FOURCC{'m', 'o', 'v', 'i'}
 	rec  = FOURCC{'r', 'e', 'c', ' '}
 	idx1 = FOURCC{'i', 'd', 'x', '1'}
 )
 
 func equal(a, b FOURCC) bool {
-	if a[0] != b[0] || a[1] != b[1] || a[2] != b[2] || a[3] != b[3]{
+	if a[0] != b[0] || a[1] != b[1] || a[2] != b[2] || a[3] != b[3] {
 		return false
 	}
 	return true
@@ -76,16 +89,18 @@ func HeadReader(r io.Reader) (FOURCC, *Reader, error) {
 		return FOURCC{}, nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
-	var head FOURCC = [4]byte{buf[0],buf[1],buf[2],buf[3]}
+	var head FOURCC = [4]byte{buf[0], buf[1], buf[2], buf[3]}
 
 	if !equal(head, RIFF) {
 		return FOURCC{}, nil, errMissingRIFFChunkHeader
 	}
-
-	return ListReader(decodeU32(buf[4:]), r) // return the size of data and the rest of data.
+	log.Printf("Head Reader: buf %#v\n", buf)
+	log.Printf("Head Reader: buf[4:] %#v\n", buf[4:])
+	log.Printf("Head Reader: len(buf) %d\n", len(buf[4:]))
+	return ListReader(decodeU32(buf[4:]), r)
 }
 
-// NewListReader returns a LIST chunk's list type, such as "movi" or "wavl",
+// ListReader returns a LIST chunk's list type, such as "movi" or "wavl",
 // and its chunks as a *Reader.
 func ListReader(chunkLen uint32, chunkData io.Reader) (FOURCC, *Reader, error) {
 	if chunkLen < 4 {
@@ -93,13 +108,17 @@ func ListReader(chunkLen uint32, chunkData io.Reader) (FOURCC, *Reader, error) {
 	}
 	data := &Reader{r: chunkData}
 
+	log.Printf("ListReader: chunkData %#v\n", chunkData)
+	log.Printf("ListReader: data %#v\n", data)
 	if _, err := io.ReadFull(chunkData, data.buf[:4]); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortChunkData
 		}
 		return FOURCC{}, nil, err
 	}
+	log.Printf("ListReader: data %#v\n", data)
 	listType := FOURCC{data.buf[0], data.buf[1], data.buf[2], data.buf[3]}
+	log.Printf("ListReader: listType %#v\n", listType)
 
 	data.totalLen = chunkLen - 4 // totalLen is the size of data after listType('avi '')
 	return listType, data, nil
