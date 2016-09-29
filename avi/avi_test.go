@@ -29,11 +29,11 @@ func TestNewTestReader(t *testing.T) {
 	// s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
 	// s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
 	// s = append(s, []byte{'\x10', '\x08', '\x00', '\x00'}...)
-	fileType, r, err := HeadReader(bytes.NewReader(s))
+	avi_file, err := HeadReader(bytes.NewReader(s))
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
 	}
 
-	log.Printf("filetype  %s   reader %#v\n", fileType, r)
+	log.Printf("filetype  %#v\n", avi_file)
 
 }

@@ -11,20 +11,20 @@ import (
 )
 
 var (
-	errMissingPaddingByte     = errors.New("riff: missing padding byte")
-	errMissingRIFFChunkHeader = errors.New("riff: missing RIFF chunk header")
-	errListSubchunkTooLong    = errors.New("riff: list subchunk too long")
-	errShortChunkData         = errors.New("riff: short chunk data")
-	errShortChunkHeader       = errors.New("riff: short chunk header")
-	errStaleReader            = errors.New("riff: stale reader")
+	errMissingPaddingByte     = errors.New("avi: missing padding byte")
+	errMissingKeywordHeader   = errors.New("avi: missing keyword")
+	errMissingRIFFChunkHeader = errors.New("avi: missing RIFF chunk header")
+	errMissingAVIChunkHeader  = errors.New("avi: missing AVI chunk header")
+	errListSubchunkTooLong    = errors.New("avi: list subchunk too long")
+	errShortChunkData         = errors.New("avi: short chunk data")
+	errShortChunkHeader       = errors.New("avi: short chunk header")
+	errStaleReader            = errors.New("avi: stale reader")
 )
 
 // u32 decodes the first four bytes of b as a little-endian integer.
 func decodeU32(b []byte) uint32 {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
-
-const chunkHeaderSize = 8
 
 // FourCC is a four character code.
 type FOURCC [4]byte
@@ -33,7 +33,6 @@ type FOURCC [4]byte
 // fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
 type avi struct {
 	fileSize [4]byte
-	fileType FOURCC
 	data     []byte
 }
 
@@ -78,26 +77,31 @@ func equal(a, b FOURCC) bool {
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func HeadReader(r io.Reader) (FOURCC, *Reader, error) {
-	buf := make([]byte, chunkHeaderSize)
+func HeadReader(r io.Reader) (*avi, error) {
+	buf := make([]byte, 12)
 
 	// Make sure that io.Reader has enough stuff to read.
 	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errMissingRIFFChunkHeader
+			err = errMissingKeywordHeader
 		}
-		return FOURCC{}, nil, err
+		return nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
-	var head FOURCC = [4]byte{buf[0], buf[1], buf[2], buf[3]}
-
-	if !equal(head, RIFF) {
-		return FOURCC{}, nil, errMissingRIFFChunkHeader
+	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, RIFF){
+		return nil, errMissingRIFFChunkHeader
 	}
+	
+	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
+
+	// Make sure the 9th to 11th bytes is 'AVI '
+	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, AVI){
+		return nil, errMissingAVIChunkHeader
+	}
+
 	log.Printf("Head Reader: buf %#v\n", buf)
-	log.Printf("Head Reader: buf[4:] %#v\n", buf[4:])
-	log.Printf("Head Reader: len(buf) %d\n", len(buf[4:]))
-	return ListReader(decodeU32(buf[4:]), r)
+	log.Printf("Head Reader: fileSize %d\n", fileSize)
+	return &avi{fileSize:fileSize}, nil
 }
 
 // ListReader returns a LIST chunk's list type, such as "movi" or "wavl",
@@ -118,7 +122,7 @@ func ListReader(chunkLen uint32, chunkData io.Reader) (FOURCC, *Reader, error) {
 	}
 	log.Printf("ListReader: data %#v\n", data)
 	listType := FOURCC{data.buf[0], data.buf[1], data.buf[2], data.buf[3]}
-	log.Printf("ListReader: listType %#v\n", listType)
+	log.Printf("ListReader: listType %#v  %s\n", listType, listType)
 
 	data.totalLen = chunkLen - 4 // totalLen is the size of data after listType('avi '')
 	return listType, data, nil
@@ -133,7 +137,7 @@ type Reader struct {
 	chunkLen uint32
 
 	chunkReader *chunkReader
-	buf         [chunkHeaderSize]byte
+	buf         [8]byte
 	padded      bool
 }
 
@@ -182,12 +186,12 @@ func (z *Reader) Next() (FOURCC, uint32, io.Reader, error) {
 	}
 
 	// Read the next chunk header.
-	if z.totalLen < chunkHeaderSize {
+	if z.totalLen < 8 {
 		return FOURCC{}, 0, nil, errShortChunkHeader
 	}
-	z.totalLen -= chunkHeaderSize
+	z.totalLen -= 8
 
-	if _, z.err = io.ReadFull(z.r, z.buf[:chunkHeaderSize]); z.err != nil {
+	if _, z.err = io.ReadFull(z.r, z.buf[:8]); z.err != nil {
 		if z.err == io.EOF || z.err == io.ErrUnexpectedEOF {
 			z.err = errShortChunkHeader
 		}
