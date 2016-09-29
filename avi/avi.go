@@ -43,6 +43,7 @@ type listType FOURCC
 type listData []byte
 
 var (
+	RIFF = FOURCC{'R','I','F','F'}
 	AVI  = FOURCC{'A', 'V', 'I', ' '}
 	LIST = FOURCC{'L', 'I', 'S', 'T'}
 	hdrl = FOURCC{'h', 'd', 'r', 'l'}
@@ -65,17 +66,19 @@ func equal(a, b FOURCC) bool {
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
 func HeadReader(r io.Reader) (FOURCC, *Reader, error) {
-	buf := make(FOURCC)
+	buf := make([]byte, chunkHeaderSize)
 
 	// Make sure that io.Reader has enough stuff to read.
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
+	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errMissingRIFFChunkHeader
 		}
 		return FOURCC{}, nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
-	if buf[0] != 'R' || buf[1] != 'I' || buf[2] != 'F' || buf[3] != 'F' {
+	var head FOURCC = [4]byte{buf[0],buf[1],buf[2],buf[3]}
+
+	if !equal(head, RIFF) {
 		return FOURCC{}, nil, errMissingRIFFChunkHeader
 	}
 
