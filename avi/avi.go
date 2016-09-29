@@ -18,6 +18,8 @@ var (
 	errListSubchunkTooLong    = errors.New("avi: list subchunk too long")
 	errShortChunkData         = errors.New("avi: short chunk data")
 	errShortChunkHeader       = errors.New("avi: short chunk header")
+	errShortListData		  = errors.New("avi: short list data")
+	errShortListHeader 		  = errors.New("avi: short list header")
 	errStaleReader            = errors.New("avi: stale reader")
 )
 
@@ -77,7 +79,7 @@ func equal(a, b FOURCC) bool {
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func HeadReader(r io.Reader) (*avi, error) {
+func HeadReader(r io.Reader) (*avi, io.Reader, error) {
 	buf := make([]byte, 12)
 
 	// Make sure that io.Reader has enough stuff to read.
@@ -85,47 +87,54 @@ func HeadReader(r io.Reader) (*avi, error) {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errMissingKeywordHeader
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
 	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, RIFF){
-		return nil, errMissingRIFFChunkHeader
+		return nil, nil, errMissingRIFFChunkHeader
 	}
 	
 	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
 
 	// Make sure the 9th to 11th bytes is 'AVI '
 	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, AVI){
-		return nil, errMissingAVIChunkHeader
+		return nil, nil, errMissingAVIChunkHeader
 	}
 
 	log.Printf("Head Reader: buf %#v\n", buf)
 	log.Printf("Head Reader: fileSize %d\n", fileSize)
-	return &avi{fileSize:fileSize}, nil
+	return &avi{fileSize:fileSize}, r, nil
 }
 
 // ListReader returns a LIST chunk's list type, such as "movi" or "wavl",
 // and its chunks as a *Reader.
-func ListReader(chunkLen uint32, chunkData io.Reader) (FOURCC, *Reader, error) {
-	if chunkLen < 4 {
-		return FOURCC{}, nil, errShortChunkData
-	}
-	data := &Reader{r: chunkData}
+func ListReader(r io.Reader) (*list, io.Reader, error) {
+	var l list	
+	var buf = make([]byte, 4)
 
-	log.Printf("ListReader: chunkData %#v\n", chunkData)
-	log.Printf("ListReader: data %#v\n", data)
-	if _, err := io.ReadFull(chunkData, data.buf[:4]); err != nil {
+	log.Printf("ListReader: r %#v\n", r)
+
+	// Make sure that listSize is stored correctly.
+	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortChunkData
+			err = errShortListHeader 	
 		}
-		return FOURCC{}, nil, err
+		return nil, nil, err
 	}
-	log.Printf("ListReader: data %#v\n", data)
-	listType := FOURCC{data.buf[0], data.buf[1], data.buf[2], data.buf[3]}
-	log.Printf("ListReader: listType %#v  %s\n", listType, listType)
+	copy(l.listSize[:], buf)
+	log.Printf("ListReader: l %#v\n", l)
 
-	data.totalLen = chunkLen - 4 // totalLen is the size of data after listType('avi '')
-	return listType, data, nil
+	// Make sure that listType is stored correctly.
+	if _, err := io.ReadFull(r, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader 	
+		}
+		return nil, nil, err
+	}
+	copy(l.listType[:], buf)
+	log.Printf("ListReader: l %#v\n", l)
+
+	return &l, r, nil
 }
 
 // Reader reads chunks from an underlying io.Reader.
