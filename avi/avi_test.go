@@ -39,5 +39,5 @@ func TestNewTestReader(t *testing.T) {
 	list, r, err := ListReader(r)
 
 
-	log.Printf("list  %#v  ioReader %#v error%s\n", list, r, err)
+	log.Printf("final: list  %#v  ioReader %#v error%s\n", list, r, err)
 }

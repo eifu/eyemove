@@ -122,7 +122,7 @@ func ListReader(r io.Reader) (*list, io.Reader, error) {
 		return nil, nil, err
 	}
 	copy(l.listSize[:], buf)
-	log.Printf("ListReader: l %#v\n", l)
+	log.Printf("ListReader: listSize %#v\n", l.listSize)
 
 	// Make sure that listType is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
@@ -132,7 +132,7 @@ func ListReader(r io.Reader) (*list, io.Reader, error) {
 		return nil, nil, err
 	}
 	copy(l.listType[:], buf)
-	log.Printf("ListReader: l %#v\n", l)
+	log.Printf("ListReader: listType %#v  %s\n", l.listType, l.listType)
 
 	return &l, r, nil
 }
@@ -174,7 +174,7 @@ func (z *Reader) Next() (FOURCC, uint32, io.Reader, error) {
 		}
 	}
 	z.chunkReader = nil
-	if z.padded { // what is padded??
+	if z.padded {
 		if z.totalLen == 0 {
 			z.err = errListSubchunkTooLong
 			return FOURCC{}, 0, nil, z.err
@@ -183,7 +183,7 @@ func (z *Reader) Next() (FOURCC, uint32, io.Reader, error) {
 
 		if _, z.err = io.ReadFull(z.r, z.buf[:1]); z.err != nil {
 			if z.err == io.EOF { // are there any case that z.err == io.ErrUnexpectedEOF??
-				z.err = errMissingPaddingByte // what is padding byte??
+				z.err = errMissingPaddingByte 
 			}
 			return FOURCC{}, 0, nil, z.err
 		}
