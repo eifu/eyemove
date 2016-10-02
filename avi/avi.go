@@ -114,7 +114,6 @@ func HeadReader(r io.Reader) (*AVI, error) {
 	}
 	
 	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
-	log.Printf("Head Reader: fileSize %#v\n", fileSize)
 
 	// Make sure the 9th to 11th bytes is 'AVI '
 	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI){
@@ -131,6 +130,18 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 	var buf = make([]byte, 4)
 
 	r := avi.data
+
+	// Make sure that first 4th letters are "LIST"
+	if _, err := io.ReadFull(r, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader 	
+		}
+		return nil, err
+	}
+
+	if !equal(FOURCC{buf[0],buf[1],buf[2],buf[3]}, fccLIST){
+		return nil, errShortListHeader
+	}
 
 	// Make sure that listSize is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
@@ -151,6 +162,8 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 	copy(l.listType[:], buf)
 
 	l.listData = r
+
+	log.Printf("%#v\n", l)
 
 	return &l, nil
 }
