@@ -161,12 +161,13 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 	copy(l.listType[:], buf[8:])
 
 	l.listData = r
+
 	return &l, nil
 }
 
 func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 
-	buf := make([]byte, 4)
+	buf := make([]byte, 8)
 	avih := AVIHeader{}
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
@@ -174,15 +175,9 @@ func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 		}
 		return nil, err
 	}
-	copy(avih.fcc[:], buf)
+	copy(avih.fcc[:], buf[:4])
 
-	if _, err := io.ReadFull(avi.data, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		return nil, err
-	}
-	avih.cb = decodeU32(buf)
+	avih.cb = decodeU32(buf[4:8])
 
 	buf = make([]byte, avih.cb)
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
