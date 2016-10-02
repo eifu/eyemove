@@ -231,15 +231,15 @@ func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 
 	avih.dwInitialFrames = decodeU32(buf[20:24])
 
-	avih.dwStreams = decodeU32(buf[28:32])
+	avih.dwStreams = decodeU32(buf[24:28])
 
-	avih.dwSuggestedBufferSize = decodeU32(buf[32:36])
+	avih.dwSuggestedBufferSize = decodeU32(buf[28:32])
 
-	avih.dwWidth = decodeU32(buf[36:40])
+	avih.dwWidth = decodeU32(buf[32:36])
 
-	avih.dwHeight = decodeU32(buf[40:44])
+	avih.dwHeight = decodeU32(buf[36:40])
 
-	avih.dwReserved = decodeU32(buf[44:48])
+	avih.dwReserved = decodeU32(buf[40:44])
 
 	return &avih, nil
 }
