@@ -65,9 +65,25 @@ type AVIHeader struct {
 	dwInitialFrames       uint32
 	dwStreams             uint32
 	dwSuggestedBufferSize uint32
-	dwWidth               uint32
-	dwHeight              uint32
-	dwReserved            uint32
+
+	dwWidth    uint32
+	dwHeight   uint32
+	dwReserved uint32
+}
+
+type StrHeader struct {
+	fcc                   FOURCC
+	fccHandler            FOURCC
+	dwFlags               uint32
+	wPriority             uint32
+	wLanguage             uint32
+	dwInitialFrames       uint32
+	dwScale               uint32
+	dwLength              uint32
+	dwSuggestedBufferSize uint32
+	dwQuality             uint32
+	dwSampleSize          uint32
+	rcFrame               [4]uint32
 }
 
 // ckID ckSize ckData
@@ -92,10 +108,10 @@ var (
 	fccAVI                  = FOURCC{'A', 'V', 'I', ' '}
 	fccLIST                 = FOURCC{'L', 'I', 'S', 'T'}
 	fcchdrl                 = FOURCC{'h', 'd', 'r', 'l'}
-	fccavih                 = FOURCC{'a', 'v', 'i', 'h'}  // avih is the main AVI header
-	fccstrl                 = FOURCC{'s', 't', 'r', 'l'}  // strl is the stream list
-	fccstrh                 = FOURCC{'s', 't', 'r', 'h'}  // strh is the stream header
-	fccstrn                 = FOURCC{'s', 't', 'r', 'n'}  //
+	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is the main AVI header
+	fccstrl                 = FOURCC{'s', 't', 'r', 'l'} // strl is the stream list
+	fccstrh                 = FOURCC{'s', 't', 'r', 'h'} // strh is the stream header
+	fccstrn                 = FOURCC{'s', 't', 'r', 'n'} //
 	fccvids                 = FOURCC{'v', 'i', 'd', 's'}
 	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'}
 	fccrec                  = FOURCC{'r', 'e', 'c', ' '}
