@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"math"
 )
 
@@ -65,20 +66,23 @@ type AVIHeader struct {
 	dwInitialFrames       uint32
 	dwStreams             uint32
 	dwSuggestedBufferSize uint32
-
-	dwWidth    uint32
-	dwHeight   uint32
-	dwReserved uint32
+	dwWidth               uint32
+	dwHeight              uint32
+	dwReserved            uint32
 }
 
 type StrHeader struct {
 	fcc                   FOURCC
+	cb                    uint32
+	fccType               FOURCC
 	fccHandler            FOURCC
 	dwFlags               uint32
 	wPriority             uint32
 	wLanguage             uint32
 	dwInitialFrames       uint32
 	dwScale               uint32
+	dwRate                uint32
+	dwStart               uint32
 	dwLength              uint32
 	dwSuggestedBufferSize uint32
 	dwQuality             uint32
@@ -116,7 +120,7 @@ var (
 	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'}
 	fccrec                  = FOURCC{'r', 'e', 'c', ' '}
 	fccidx1                 = FOURCC{'i', 'd', 'x', '1'}
-	fcc     map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
+	fccMap  map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
 )
 
 func equal(a, b FOURCC) bool {
@@ -203,28 +207,59 @@ func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 		return nil, err
 	}
 	avih.dwMicroSecPerFrame = decodeU32(buf[:4])
-
 	avih.dwMaxBytesPerSec = decodeU32(buf[4:8])
-
 	avih.dwPaddingGranularity = decodeU32(buf[8:12])
-
 	avih.dwFlags = decodeU32(buf[12:16])
-
 	avih.dwTotalFrames = decodeU32(buf[16:20])
-
 	avih.dwInitialFrames = decodeU32(buf[20:24])
-
 	avih.dwStreams = decodeU32(buf[24:28])
-
 	avih.dwSuggestedBufferSize = decodeU32(buf[28:32])
-
 	avih.dwWidth = decodeU32(buf[32:36])
-
 	avih.dwHeight = decodeU32(buf[36:40])
-
 	avih.dwReserved = decodeU32(buf[40:44])
-
 	return &avih, nil
+}
+
+func (avi *AVI) StreamHeaderReader() (*StrHeader, error) {
+	buf := make([]byte, 8)
+	strh := StrHeader{}
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}
+
+	copy(strh.fcc[:], buf[:4])
+
+	strh.cb = decodeU32(buf[4:])
+
+	log.Printf("%#v\n", strh)
+	buf = make([]byte, strh.cb)
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}
+
+	copy(strh.fccType[:], buf[:4])
+	copy(strh.fccHandler[:], buf[4:8])
+	strh.dwFlags = decodeU32(buf[8:12])
+	strh.wPriority = decodeU32(buf[12:16])
+	strh.wLanguage = decodeU32(buf[16:20])
+	strh.dwInitialFrames = decodeU32(buf[20:24])
+	strh.dwScale = decodeU32(buf[24:28])
+	strh.dwRate = decodeU32(buf[28:32])
+	strh.dwStart = decodeU32(buf[32:36])
+	strh.dwLength = decodeU32(buf[36:40])
+	strh.dwSuggestedBufferSize = decodeU32(buf[40:44])
+	strh.dwQuality = decodeU32(buf[44:48])
+	strh.dwSampleSize = decodeU32(buf[48:52])
+	//copy(strh.rcFrame[:], buf[52:56])
+	strh.rcFrame = [4]uint32{uint32(buf[48]), uint32(buf[49]), uint32(buf[50]), uint32(buf[51])}
+
+	return &strh, nil
 }
 
 // Reader reads chunks from an underlying io.Reader.
