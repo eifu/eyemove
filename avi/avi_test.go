@@ -31,6 +31,33 @@ func TestNewTestReader(t *testing.T) {
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
 	s = append(s, []byte{'\x4c', '\x49', '\x53', '\x54'}...)  // LIST
 	s = append(s, []byte{'\xa4', '\x04', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x73', '\x74', '\x72', '\x6c'}...)  // strl
+	s = append(s, []byte{'\x73', '\x74', '\x72', '\x68'}...)  // strh
+	s = append(s, []byte{'\x38', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x76', '\x69', '\x64', '\x73'}...)  // vids
+	s = append(s, []byte{'\x44', '\x49', '\x42', '\x20'}...)
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x40', '\x42', '\x0f', '\x00'}...)  
+	s = append(s, []byte{'\x80', '\xc3', '\xc9', '\x01'}...)  
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\xae', '\x4a', '\x00', '\x00'}...)  
+	s = append(s, []byte{'\x98', '\x4c', '\x00', '\x00'}...)  
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)  //
+	s = append(s, []byte{'\x73', '\x74', '\x72', '\x66'}...)  // strf
+	s = append(s, []byte{'\x28', '\x04', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x28', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\xac', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x72', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x01', '\x00', '\x08', '\x00'}...)
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x98', '\x4c', '\x00', '\x00'}...)
+
 	avi, err := HeadReader(bytes.NewReader(s))
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
