@@ -23,9 +23,28 @@ var (
 	errStaleReader            = errors.New("avi: stale reader")
 )
 
+
+
 // u32 decodes the first four bytes of b as a little-endian integer.
 func decodeU32(b []byte) uint32 {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+}
+
+func encodeU32(u uint32) string {
+	return string([]byte{
+		byte(u >> 0),
+		byte(u >> 8),
+		byte(u >> 16),
+		byte(u >> 24),
+	})
+}
+
+func encode(chunkID, contents string) string{
+	n := len(contents)
+	if n&1 == 1{
+		contents += "\x00"
+	}	
+	return chunkID + encodeU32(uint32(n)) + contents
 }
 
 // FourCC is a four character code.
@@ -33,9 +52,9 @@ type FOURCC [4]byte
 
 // 'RIFF' fileSize fileType (data)
 // fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
-type avi struct {
+type AVI struct {
 	fileSize [4]byte
-	data     []byte
+	data     []List
 }
 
 // ckID ckSize ckData
@@ -49,25 +68,25 @@ type chunk struct {
 
 // 'LIST' listSize listType listData
 // listSize includes size of listType, listdata, but not include 'LIST', listSize
-type list struct {
+type List struct {
 	listSize [4]byte
 	listType FOURCC
 	listData []byte
 }
 
 var (
-	RIFF = FOURCC{'R', 'I', 'F', 'F'}
-	AVI  = FOURCC{'A', 'V', 'I', ' '}
-	LIST = FOURCC{'L', 'I', 'S', 'T'}
-	hdrl = FOURCC{'h', 'd', 'r', 'l'}
-	avih = FOURCC{'a', 'v', 'i', 'h'}  // avih is the main AVI header
-	strl = FOURCC{'s', 't', 'r', 'l'}
-	strh = FOURCC{'s', 't', 'r', 'h'}
-	strn = FOURCC{'s', 't', 'r', 'n'}
-	vids = FOURCC{'v', 'i', 'd', 's'}
-	movi = FOURCC{'m', 'o', 'v', 'i'}
-	rec  = FOURCC{'r', 'e', 'c', ' '}
-	idx1 = FOURCC{'i', 'd', 'x', '1'}
+	fccRIFF = FOURCC{'R', 'I', 'F', 'F'}
+	fccAVI  = FOURCC{'A', 'V', 'I', ' '}
+	fccLIST = FOURCC{'L', 'I', 'S', 'T'}
+	fcchdrl = FOURCC{'h', 'd', 'r', 'l'}
+	fccavih = FOURCC{'a', 'v', 'i', 'h'}  // avih is the main AVI header
+	fccstrl = FOURCC{'s', 't', 'r', 'l'}
+	fccstrh = FOURCC{'s', 't', 'r', 'h'}
+	fccstrn = FOURCC{'s', 't', 'r', 'n'}
+	fccvids = FOURCC{'v', 'i', 'd', 's'}
+	fccmovi = FOURCC{'m', 'o', 'v', 'i'}
+	fccrec  = FOURCC{'r', 'e', 'c', ' '}
+	fccidx1 = FOURCC{'i', 'd', 'x', '1'}
 )
 
 func equal(a, b FOURCC) bool {
@@ -79,7 +98,7 @@ func equal(a, b FOURCC) bool {
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func HeadReader(r io.Reader) (*avi, io.Reader, error) {
+func HeadReader(r io.Reader) (*AVI, io.Reader, error) {
 	buf := make([]byte, 12)
 
 	// Make sure that io.Reader has enough stuff to read.
@@ -90,29 +109,26 @@ func HeadReader(r io.Reader) (*avi, io.Reader, error) {
 		return nil, nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
-	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, RIFF){
+	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF){
 		return nil, nil, errMissingRIFFChunkHeader
 	}
 	
 	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
+	log.Printf("Head Reader: fileSize %#v\n", fileSize)
 
 	// Make sure the 9th to 11th bytes is 'AVI '
-	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, AVI){
+	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI){
 		return nil, nil, errMissingAVIChunkHeader
 	}
 
-	log.Printf("Head Reader: buf %#v\n", buf)
-	log.Printf("Head Reader: fileSize %d\n", fileSize)
-	return &avi{fileSize:fileSize}, r, nil
+	return &AVI{fileSize:fileSize}, r, nil
 }
 
 // ListReader returns a LIST chunk's list type, such as "movi" or "wavl",
 // and its chunks as a *Reader.
-func ListReader(r io.Reader) (*list, io.Reader, error) {
-	var l list	
+func (avi *AVI) ListHeadReader(r io.Reader) (*List, io.Reader, error) {
+	var l List	
 	var buf = make([]byte, 4)
-
-	log.Printf("ListReader: r %#v\n", r)
 
 	// Make sure that listSize is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
@@ -122,8 +138,7 @@ func ListReader(r io.Reader) (*list, io.Reader, error) {
 		return nil, nil, err
 	}
 	copy(l.listSize[:], buf)
-	log.Printf("ListReader: listSize %#v\n", l.listSize)
-
+	
 	// Make sure that listType is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
@@ -132,7 +147,6 @@ func ListReader(r io.Reader) (*list, io.Reader, error) {
 		return nil, nil, err
 	}
 	copy(l.listType[:], buf)
-	log.Printf("ListReader: listType %#v  %s\n", l.listType, l.listType)
 
 	return &l, r, nil
 }
@@ -183,7 +197,7 @@ func (z *Reader) Next() (FOURCC, uint32, io.Reader, error) {
 
 		if _, z.err = io.ReadFull(z.r, z.buf[:1]); z.err != nil {
 			if z.err == io.EOF { // are there any case that z.err == io.ErrUnexpectedEOF??
-				z.err = errMissingPaddingByte 
+				z.err = errMissingPaddingByte // what is padding byte??
 			}
 			return FOURCC{}, 0, nil, z.err
 		}
