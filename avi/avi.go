@@ -5,8 +5,8 @@ package avi
 import (
 	"errors"
 	"io"
-	"log"
 	"io/ioutil"
+	"log"
 	"math"
 )
 
@@ -18,12 +18,10 @@ var (
 	errListSubchunkTooLong    = errors.New("avi: list subchunk too long")
 	errShortChunkData         = errors.New("avi: short chunk data")
 	errShortChunkHeader       = errors.New("avi: short chunk header")
-	errShortListData		  = errors.New("avi: short list data")
-	errShortListHeader 		  = errors.New("avi: short list header")
+	errShortListData          = errors.New("avi: short list data")
+	errShortListHeader        = errors.New("avi: short list header")
 	errStaleReader            = errors.New("avi: stale reader")
 )
-
-
 
 // u32 decodes the first four bytes of b as a little-endian integer.
 func decodeU32(b []byte) uint32 {
@@ -39,11 +37,11 @@ func encodeU32(u uint32) string {
 	})
 }
 
-func encode(chunkID, contents string) string{
+func encode(chunkID, contents string) string {
 	n := len(contents)
-	if n&1 == 1{
+	if n&1 == 1 {
 		contents += "\x00"
-	}	
+	}
 	return chunkID + encodeU32(uint32(n)) + contents
 }
 
@@ -57,8 +55,24 @@ type AVI struct {
 	data     io.Reader
 }
 
+type AVIHeader struct {
+	fcc                   FOURCC
+	cb                    uint32
+	dwMicroSecPerFrame    uint32
+	dwMaxBytesPerSec      uint32
+	dwPaddingGranularity  uint32
+	dwFlags               uint32
+	dwTotalFrames         uint32
+	dwInitialFrames       uint32
+	dwStreams             uint32
+	dwSuggestedBufferSize uint32
+	dwWidth               uint32
+	dwHeight              uint32
+	dwReserved            uint32
+}
+
 // ckID ckSize ckData
-// ckSize includes size of ckData, but not include size of padding, ckID, ckSize 
+// ckSize includes size of ckData, but not include size of padding, ckID, ckSize
 // The data is always padded to nearest WORD boundary.
 type chunk struct {
 	ckID   FOURCC
@@ -75,19 +89,19 @@ type List struct {
 }
 
 var (
-	fccRIFF = FOURCC{'R', 'I', 'F', 'F'}
-	fccAVI  = FOURCC{'A', 'V', 'I', ' '}
-	fccLIST = FOURCC{'L', 'I', 'S', 'T'}
-	fcchdrl = FOURCC{'h', 'd', 'r', 'l'}
-	fccavih = FOURCC{'a', 'v', 'i', 'h'}  // avih is the main AVI header
-	fccstrl = FOURCC{'s', 't', 'r', 'l'}
-	fccstrh = FOURCC{'s', 't', 'r', 'h'}
-	fccstrn = FOURCC{'s', 't', 'r', 'n'}
-	fccvids = FOURCC{'v', 'i', 'd', 's'}
-	fccmovi = FOURCC{'m', 'o', 'v', 'i'}
-	fccrec  = FOURCC{'r', 'e', 'c', ' '}
-	fccidx1 = FOURCC{'i', 'd', 'x', '1'}
-	fcc map[FOURCC]bool= map[FOURCC]bool{fccRIFF:true,fccAVI:true,fccLIST:true,fcchdrl:true,} 
+	fccRIFF                 = FOURCC{'R', 'I', 'F', 'F'}
+	fccAVI                  = FOURCC{'A', 'V', 'I', ' '}
+	fccLIST                 = FOURCC{'L', 'I', 'S', 'T'}
+	fcchdrl                 = FOURCC{'h', 'd', 'r', 'l'}
+	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is the main AVI header
+	fccstrl                 = FOURCC{'s', 't', 'r', 'l'}
+	fccstrh                 = FOURCC{'s', 't', 'r', 'h'}
+	fccstrn                 = FOURCC{'s', 't', 'r', 'n'}
+	fccvids                 = FOURCC{'v', 'i', 'd', 's'}
+	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'}
+	fccrec                  = FOURCC{'r', 'e', 'c', ' '}
+	fccidx1                 = FOURCC{'i', 'd', 'x', '1'}
+	fcc     map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
 )
 
 func equal(a, b FOURCC) bool {
@@ -110,61 +124,74 @@ func HeadReader(r io.Reader) (*AVI, error) {
 		return nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
-	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF){
+	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF) {
 		return nil, errMissingRIFFChunkHeader
 	}
-	
+
 	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
 
 	// Make sure the 9th to 11th bytes is 'AVI '
-	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI){
+	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	return &AVI{fileSize:fileSize, data:r}, nil
+	return &AVI{fileSize: fileSize, data: r}, nil
 }
 
-// ListReader returns a LIST chunk's list type, such as "movi" or "wavl",
-// and its chunks as a *Reader.
+// ListReader returns List type
 func (avi *AVI) ListHeadReader() (*List, error) {
-	var l List	
+	var l List
 	var buf = make([]byte, 4)
 
 	r := avi.data
 
-	// Make sure that first 4th letters are "LIST"
 	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader 	
+			err = errShortListHeader
 		}
 		return nil, err
 	}
 
-	if !equal(FOURCC{buf[0],buf[1],buf[2],buf[3]}, fccLIST){
+	// Make sure that first 4th letters are "LIST"
+	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccLIST) {
 		return nil, errShortListHeader
 	}
 
 	// Make sure that listSize is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader 	
+			err = errShortListHeader
 		}
 		return nil, err
 	}
 	copy(l.listSize[:], buf)
-	
+
 	// Make sure that listType is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader 	
+			err = errShortListHeader
 		}
 		return nil, err
 	}
 	copy(l.listType[:], buf)
-	log.Printf("%s\n",buf)
-	l.listData = r
 
+	l.listData = r
 	return &l, nil
+}
+
+func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
+	buf := make([]byte, 4)
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}
+	avih := AVIHeader{}
+	copy(avih.fcc[:], buf)
+	log.Printf("%s\n", avih.fcc)
+
+	return &avih, nil
 }
 
 // Reader reads chunks from an underlying io.Reader.
