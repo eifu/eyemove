@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 )
 
@@ -93,10 +92,10 @@ var (
 	fccAVI                  = FOURCC{'A', 'V', 'I', ' '}
 	fccLIST                 = FOURCC{'L', 'I', 'S', 'T'}
 	fcchdrl                 = FOURCC{'h', 'd', 'r', 'l'}
-	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is the main AVI header
-	fccstrl                 = FOURCC{'s', 't', 'r', 'l'}
-	fccstrh                 = FOURCC{'s', 't', 'r', 'h'}
-	fccstrn                 = FOURCC{'s', 't', 'r', 'n'}
+	fccavih                 = FOURCC{'a', 'v', 'i', 'h'}  // avih is the main AVI header
+	fccstrl                 = FOURCC{'s', 't', 'r', 'l'}  // strl is the stream list
+	fccstrh                 = FOURCC{'s', 't', 'r', 'h'}  // strh is the stream header
+	fccstrn                 = FOURCC{'s', 't', 'r', 'n'}  //
 	fccvids                 = FOURCC{'v', 'i', 'd', 's'}
 	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'}
 	fccrec                  = FOURCC{'r', 'e', 'c', ' '}
@@ -141,7 +140,7 @@ func HeadReader(r io.Reader) (*AVI, error) {
 // ListReader returns List type
 func (avi *AVI) ListHeadReader() (*List, error) {
 	var l List
-	var buf = make([]byte, 4)
+	var buf = make([]byte, 12)
 
 	r := avi.data
 
@@ -157,37 +156,12 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 		return nil, errShortListHeader
 	}
 
-	// Make sure that listSize is stored correctly.
-	if _, err := io.ReadFull(r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		return nil, err
-	}
-	copy(l.listSize[:], buf)
+	copy(l.listSize[:], buf[4:8])
 
-	// Make sure that listType is stored correctly.
-	if _, err := io.ReadFull(r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		return nil, err
-	}
-	copy(l.listType[:], buf)
+	copy(l.listType[:], buf[8:])
 
 	l.listData = r
 	return &l, nil
-}
-
-func read4bytes(r io.Reader)([]byte,error){
-	buf := make([]byte, 4)
-	if _, err := io.ReadFull(r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		return nil, err
-	}
-	return buf, nil
 }
 
 func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
@@ -199,7 +173,7 @@ func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 			err = errShortListHeader
 		}
 		return nil, err
-	}	
+	}
 	copy(avih.fcc[:], buf)
 
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
@@ -209,10 +183,8 @@ func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 		return nil, err
 	}
 	avih.cb = decodeU32(buf)
-	log.Println(avih.cb)
 
 	buf = make([]byte, avih.cb)
-
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
