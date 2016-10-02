@@ -189,7 +189,103 @@ func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
 	}
 	avih := AVIHeader{}
 	copy(avih.fcc[:], buf)
-	log.Printf("%s\n", avih.fcc)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}
+	log.Println(decodeU32(buf))
+	avih.cb = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwMicroSecPerFrame = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwMaxBytesPerSec = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwPaddingGranularity = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwFlags = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwTotalFrames = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwInitialFrames = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwStreams = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwSuggestedBufferSize = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwWidth = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwHeight = decodeU32(buf)
+
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}	
+	avih.dwReserved = decodeU32(buf)
 
 	return &avih, nil
 }
