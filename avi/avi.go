@@ -87,6 +87,7 @@ var (
 	fccmovi = FOURCC{'m', 'o', 'v', 'i'}
 	fccrec  = FOURCC{'r', 'e', 'c', ' '}
 	fccidx1 = FOURCC{'i', 'd', 'x', '1'}
+	fcc map[FOURCC]bool= map[FOURCC]bool{fccRIFF:true,fccAVI:true,fccLIST:true,fcchdrl:true,} 
 )
 
 func equal(a, b FOURCC) bool {
@@ -160,10 +161,8 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 		return nil, err
 	}
 	copy(l.listType[:], buf)
-
+	log.Printf("%s\n",buf)
 	l.listData = r
-
-	log.Printf("%#v\n", l)
 
 	return &l, nil
 }
