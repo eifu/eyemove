@@ -20,14 +20,14 @@ func TestNewTestReader(t *testing.T) {
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
 	s = append(s, []byte{'\x10', '\x08', '\x00', '\x00'}...)
-	avi, r, err := HeadReader(bytes.NewReader(s))
+	avi, err := HeadReader(bytes.NewReader(s))
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
 	}
 
-	log.Printf("avi  %#v  ioReader %#v\n", avi, r)
+	log.Printf("avi  %#v\n", avi)
 
-	list, r, err := avi.ListHeadReader(r)
+	list, err := avi.ListHeadReader()
 
-	log.Printf("final: list  %#v  \nioReader %#v\n error%s\n", list, r, err)
+	log.Printf("final: list  %#v  \n error%s\n", list, err)
 }

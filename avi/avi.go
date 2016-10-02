@@ -54,7 +54,7 @@ type FOURCC [4]byte
 // fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
 type AVI struct {
 	fileSize [4]byte
-	data     []List
+	data     io.Reader
 }
 
 // ckID ckSize ckData
@@ -63,7 +63,7 @@ type AVI struct {
 type chunk struct {
 	ckID   FOURCC
 	ckSize [4]byte
-	ckData []byte
+	ckData io.Reader
 }
 
 // 'LIST' listSize listType listData
@@ -71,7 +71,7 @@ type chunk struct {
 type List struct {
 	listSize [4]byte
 	listType FOURCC
-	listData []byte
+	listData io.Reader
 }
 
 var (
@@ -98,7 +98,7 @@ func equal(a, b FOURCC) bool {
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func HeadReader(r io.Reader) (*AVI, io.Reader, error) {
+func HeadReader(r io.Reader) (*AVI, error) {
 	buf := make([]byte, 12)
 
 	// Make sure that io.Reader has enough stuff to read.
@@ -106,11 +106,11 @@ func HeadReader(r io.Reader) (*AVI, io.Reader, error) {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errMissingKeywordHeader
 		}
-		return nil, nil, err
+		return nil, err
 	}
 	// Make sure the first FOURCC lieral is 'RIFF'
 	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF){
-		return nil, nil, errMissingRIFFChunkHeader
+		return nil, errMissingRIFFChunkHeader
 	}
 	
 	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
@@ -118,24 +118,26 @@ func HeadReader(r io.Reader) (*AVI, io.Reader, error) {
 
 	// Make sure the 9th to 11th bytes is 'AVI '
 	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI){
-		return nil, nil, errMissingAVIChunkHeader
+		return nil, errMissingAVIChunkHeader
 	}
 
-	return &AVI{fileSize:fileSize}, r, nil
+	return &AVI{fileSize:fileSize, data:r}, nil
 }
 
 // ListReader returns a LIST chunk's list type, such as "movi" or "wavl",
 // and its chunks as a *Reader.
-func (avi *AVI) ListHeadReader(r io.Reader) (*List, io.Reader, error) {
+func (avi *AVI) ListHeadReader() (*List, error) {
 	var l List	
 	var buf = make([]byte, 4)
+
+	r := avi.data
 
 	// Make sure that listSize is stored correctly.
 	if _, err := io.ReadFull(r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader 	
 		}
-		return nil, nil, err
+		return nil, err
 	}
 	copy(l.listSize[:], buf)
 	
@@ -144,11 +146,13 @@ func (avi *AVI) ListHeadReader(r io.Reader) (*List, io.Reader, error) {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader 	
 		}
-		return nil, nil, err
+		return nil, err
 	}
 	copy(l.listType[:], buf)
 
-	return &l, r, nil
+	l.listData = r
+
+	return &l, nil
 }
 
 // Reader reads chunks from an underlying io.Reader.
