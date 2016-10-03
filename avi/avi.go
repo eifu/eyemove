@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"math"
 )
 
@@ -118,19 +119,20 @@ func (l List) PrettyPrint() (string, error) {
 }
 
 var (
-	fccRIFF                 = FOURCC{'R', 'I', 'F', 'F'}
-	fccAVI                  = FOURCC{'A', 'V', 'I', ' '}
-	fccLIST                 = FOURCC{'L', 'I', 'S', 'T'}
-	fcchdrl                 = FOURCC{'h', 'd', 'r', 'l'}
-	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is the main AVI header
-	fccstrl                 = FOURCC{'s', 't', 'r', 'l'} // strl is the stream list
-	fccstrh                 = FOURCC{'s', 't', 'r', 'h'} // strh is the stream header
-	fccstrn                 = FOURCC{'s', 't', 'r', 'n'} // strn is the stream name
-	fccvids                 = FOURCC{'v', 'i', 'd', 's'}
-	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'}
-	fccrec                  = FOURCC{'r', 'e', 'c', ' '}
-	fccidx1                 = FOURCC{'i', 'd', 'x', '1'}
-	fccJUNK                 = FOURCC{'J', 'U', 'N', 'K'}
+	fccRIFF                 = FOURCC{'R', 'I', 'F', 'F'} // RIFF is super class of avi file
+	fccAVI                  = FOURCC{'A', 'V', 'I', ' '} // AVI is identifier of avi file
+	fccLIST                 = FOURCC{'L', 'I', 'S', 'T'} // LIST is identifier of LIST type
+	fcchdrl                 = FOURCC{'h', 'd', 'r', 'l'} // hdrl is header list
+	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is AVI header
+	fccstrf                 = FOURCC{'s', 't', 'r', 'f'} // strf is stream format
+	fccstrl                 = FOURCC{'s', 't', 'r', 'l'} // strl is stream list
+	fccstrh                 = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
+	fccstrn                 = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
+	fccvids                 = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
+	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'} //
+	fccrec                  = FOURCC{'r', 'e', 'c', ' '} //
+	fccidx1                 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
+	fccJUNK                 = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
 	fccMap  map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
 )
 
@@ -214,13 +216,15 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 		ck.ckData, err = avi.AVIHeaderReader(ck.ckSize)
 	case fccstrh:
 		ck.ckData, err = avi.StreamHeaderReader(ck.ckSize)
+	case fccstrf:
+		ck.ckData, err = avi.StreamFormatReader(ck.ckSize)
 	}
 
 	return &ck, nil
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
-
+	log.Printf("avih size: %d\n", size)
 	buf := make([]byte, size)
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
@@ -247,6 +251,7 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 	buf := make([]byte, size)
+	log.Printf("strh size: %d\n", size)
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
@@ -254,7 +259,8 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 		return nil, err
 	}
 	m := make(map[string]uint32)
-
+	m["fccType"] = decodeU32(buf[:4])
+	m["handler"] = decodeU32(buf[4:8])
 	m["dwFlags"] = decodeU32(buf[8:12])
 	m["wPriority"] = decodeU32(buf[12:16])
 	m["wLanguage"] = decodeU32(buf[16:20])
@@ -270,6 +276,28 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 	m["rcFrame2"] = uint32(buf[49])
 	m["rcFrame3"] = uint32(buf[50])
 	m["rcFrame4"] = uint32(buf[51])
+
+	return m, nil
+}
+
+func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
+	log.Printf("strf size: %d\n", size)
+	buf := make([]byte, size)
+	if _, err := io.ReadFull(avi.data, buf); err != nil {
+		return nil, err
+	}
+	m := make(map[string]uint32)
+	m["biSize"] = decodeU32(buf[:4])
+	m["biWidth"] = decodeU32(buf[4:8])
+	m["biHeight"] = decodeU32(buf[8:12])
+	m["biPlanes"] = decodeU32(buf[12:16])
+	m["biBitCount"] = decodeU32(buf[16:20])
+	m["biCompression"] = decodeU32(buf[20:24])
+	m["biSizeImage"] = decodeU32(buf[24:28])
+	m["biXPelsPerMeter"] = decodeU32(buf[28:32])
+	m["biYPelsPerMeter"] = decodeU32(buf[32:36])
+	m["biClrUsed"] = decodeU32(buf[36:40])
+	m["biClrImportant"] = decodeU32(buf[40:44])
 
 	return m, nil
 }

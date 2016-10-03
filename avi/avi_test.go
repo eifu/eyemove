@@ -33,9 +33,9 @@ func TestNewTestReader(t *testing.T) {
 	s = append(s, []byte{'\xa4', '\x04', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x73', '\x74', '\x72', '\x6c'}...) // strl
 	s = append(s, []byte{'\x73', '\x74', '\x72', '\x68'}...) // strh
-	s = append(s, []byte{'\x38', '\x00', '\x00', '\x00'}...)
+	s = append(s, []byte{'\x38', '\x00', '\x00', '\x00'}...) // size of stream header
 	s = append(s, []byte{'\x76', '\x69', '\x64', '\x73'}...) // vids
-	s = append(s, []byte{'\x44', '\x49', '\x42', '\x20'}...)
+	s = append(s, []byte{'\x44', '\x49', '\x42', '\x20'}...) //
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
@@ -63,9 +63,6 @@ func TestNewTestReader(t *testing.T) {
 		t.Errorf(" %#v %s", s, err)
 	}
 
-	//log.Printf("avi  %#v\n", avi)
-	_ = avi
-
 	list, err := avi.ListHeadReader()
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
@@ -90,5 +87,11 @@ func TestNewTestReader(t *testing.T) {
 		t.Errorf("%#v\n", strh)
 	}
 	log.Printf("strh: %#v\n", strh)
+
+	strf, err := avi.ChunkReader()
+	if err != nil {
+		t.Errorf("%#v\n", strf)
+	}
+	log.Printf("strf: %#v\n", strf)
 
 }
