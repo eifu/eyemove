@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 )
 
@@ -33,8 +32,7 @@ func encodeU32(u uint32) string {
 		byte(u >> 0),
 		byte(u >> 8),
 		byte(u >> 16),
-		byte(u >> 24),
-	})
+		byte(u >> 2)})
 }
 
 func encode(chunkID, contents string) string {
@@ -90,13 +88,19 @@ type StrHeader struct {
 	rcFrame               [4]uint32
 }
 
+// StrFormat is the same as BITFORMAT
+type StrFormat struct {
+}
+
 // ckID ckSize ckData
+//
+// ckID FOUCC, ckSize uint32, ckData io.Reader
 // ckSize includes size of ckData, but not include size of padding, ckID, ckSize
 // The data is always padded to nearest WORD boundary.
-type chunk struct {
+type Chunk struct {
 	ckID   FOURCC
-	ckSize [4]byte
-	ckData io.Reader
+	ckSize uint32
+	ckData map[string]uint32
 }
 
 // 'LIST' listSize listType listData
@@ -107,6 +111,12 @@ type List struct {
 	listData io.Reader
 }
 
+func (l List) PrettyPrint() (string, error) {
+	for {
+
+	}
+}
+
 var (
 	fccRIFF                 = FOURCC{'R', 'I', 'F', 'F'}
 	fccAVI                  = FOURCC{'A', 'V', 'I', ' '}
@@ -115,11 +125,12 @@ var (
 	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is the main AVI header
 	fccstrl                 = FOURCC{'s', 't', 'r', 'l'} // strl is the stream list
 	fccstrh                 = FOURCC{'s', 't', 'r', 'h'} // strh is the stream header
-	fccstrn                 = FOURCC{'s', 't', 'r', 'n'} //
+	fccstrn                 = FOURCC{'s', 't', 'r', 'n'} // strn is the stream name
 	fccvids                 = FOURCC{'v', 'i', 'd', 's'}
 	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'}
 	fccrec                  = FOURCC{'r', 'e', 'c', ' '}
 	fccidx1                 = FOURCC{'i', 'd', 'x', '1'}
+	fccJUNK                 = FOURCC{'J', 'U', 'N', 'K'}
 	fccMap  map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
 )
 
@@ -185,44 +196,32 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 	return &l, nil
 }
 
-func (avi *AVI) AVIHeaderReader() (*AVIHeader, error) {
-
+func (avi *AVI) ChunkReader() (*Chunk, error) {
 	buf := make([]byte, 8)
-	avih := AVIHeader{}
-	if _, err := io.ReadFull(avi.data, buf); err != nil {
+	ck := Chunk{}
+	var err error
+	if _, err = io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
 		return nil, err
 	}
-	copy(avih.fcc[:], buf[:4])
 
-	avih.cb = decodeU32(buf[4:8])
-
-	buf = make([]byte, avih.cb)
-	if _, err := io.ReadFull(avi.data, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		return nil, err
+	copy(ck.ckID[:], buf[:4])
+	ck.ckSize = decodeU32(buf[4:])
+	switch ck.ckID {
+	case fccavih:
+		ck.ckData, err = avi.AVIHeaderReader(ck.ckSize)
+	case fccstrh:
+		ck.ckData, err = avi.StreamHeaderReader(ck.ckSize)
 	}
-	avih.dwMicroSecPerFrame = decodeU32(buf[:4])
-	avih.dwMaxBytesPerSec = decodeU32(buf[4:8])
-	avih.dwPaddingGranularity = decodeU32(buf[8:12])
-	avih.dwFlags = decodeU32(buf[12:16])
-	avih.dwTotalFrames = decodeU32(buf[16:20])
-	avih.dwInitialFrames = decodeU32(buf[20:24])
-	avih.dwStreams = decodeU32(buf[24:28])
-	avih.dwSuggestedBufferSize = decodeU32(buf[28:32])
-	avih.dwWidth = decodeU32(buf[32:36])
-	avih.dwHeight = decodeU32(buf[36:40])
-	avih.dwReserved = decodeU32(buf[40:44])
-	return &avih, nil
+
+	return &ck, nil
 }
 
-func (avi *AVI) StreamHeaderReader() (*StrHeader, error) {
-	buf := make([]byte, 8)
-	strh := StrHeader{}
+func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
+
+	buf := make([]byte, size)
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
@@ -230,36 +229,49 @@ func (avi *AVI) StreamHeaderReader() (*StrHeader, error) {
 		return nil, err
 	}
 
-	copy(strh.fcc[:], buf[:4])
+	m := make(map[string]uint32)
 
-	strh.cb = decodeU32(buf[4:])
+	m["dwMicroSecPerFrame"] = decodeU32(buf[:4])
+	m["dwMaxBytesPerSec"] = decodeU32(buf[4:8])
+	m["dwPaddingGranularity"] = decodeU32(buf[8:12])
+	m["dwFlags"] = decodeU32(buf[12:16])
+	m["dwTotalFrames"] = decodeU32(buf[16:20])
+	m["dwInitialFrames"] = decodeU32(buf[20:24])
+	m["dwStreams"] = decodeU32(buf[24:28])
+	m["dwSuggestedBufferSize"] = decodeU32(buf[28:32])
+	m["dwWidth"] = decodeU32(buf[32:36])
+	m["dwHeight"] = decodeU32(buf[36:40])
+	m["dwReserved"] = decodeU32(buf[40:44])
+	return m, nil
+}
 
-	log.Printf("%#v\n", strh)
-	buf = make([]byte, strh.cb)
+func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
+	buf := make([]byte, size)
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
 		return nil, err
 	}
+	m := make(map[string]uint32)
 
-	copy(strh.fccType[:], buf[:4])
-	copy(strh.fccHandler[:], buf[4:8])
-	strh.dwFlags = decodeU32(buf[8:12])
-	strh.wPriority = decodeU32(buf[12:16])
-	strh.wLanguage = decodeU32(buf[16:20])
-	strh.dwInitialFrames = decodeU32(buf[20:24])
-	strh.dwScale = decodeU32(buf[24:28])
-	strh.dwRate = decodeU32(buf[28:32])
-	strh.dwStart = decodeU32(buf[32:36])
-	strh.dwLength = decodeU32(buf[36:40])
-	strh.dwSuggestedBufferSize = decodeU32(buf[40:44])
-	strh.dwQuality = decodeU32(buf[44:48])
-	strh.dwSampleSize = decodeU32(buf[48:52])
-	//copy(strh.rcFrame[:], buf[52:56])
-	strh.rcFrame = [4]uint32{uint32(buf[48]), uint32(buf[49]), uint32(buf[50]), uint32(buf[51])}
+	m["dwFlags"] = decodeU32(buf[8:12])
+	m["wPriority"] = decodeU32(buf[12:16])
+	m["wLanguage"] = decodeU32(buf[16:20])
+	m["dwInitialFrames"] = decodeU32(buf[20:24])
+	m["dwScale"] = decodeU32(buf[24:28])
+	m["dwRate"] = decodeU32(buf[28:32])
+	m["dwStart"] = decodeU32(buf[32:36])
+	m["dwLength"] = decodeU32(buf[36:40])
+	m["dwSuggestedBufferSize"] = decodeU32(buf[40:44])
+	m["dwQuality"] = decodeU32(buf[44:48])
+	m["dwSampleSize"] = decodeU32(buf[48:52])
+	m["rcFrame1"] = uint32(buf[48])
+	m["rcFrame2"] = uint32(buf[49])
+	m["rcFrame3"] = uint32(buf[50])
+	m["rcFrame4"] = uint32(buf[51])
 
-	return &strh, nil
+	return m, nil
 }
 
 // Reader reads chunks from an underlying io.Reader.

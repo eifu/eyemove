@@ -48,7 +48,7 @@ func TestNewTestReader(t *testing.T) {
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
-	s = append(s, []byte{'\x73', '\x74', '\x72', '\x66'}...) // strf
+	s = append(s, []byte{'\x73', '\x74', '\x72', '\x66'}...) // strf: video stream format
 	s = append(s, []byte{'\x28', '\x04', '\x00', '\x00'}...)
 	s = append(s, []byte{'\x28', '\x00', '\x00', '\x00'}...)
 	s = append(s, []byte{'\xac', '\x00', '\x00', '\x00'}...)
@@ -71,25 +71,24 @@ func TestNewTestReader(t *testing.T) {
 		t.Errorf(" %#v %s", s, err)
 	}
 	//	log.Printf("final: list  %#v  \n error%s\n", list, err)
+	//	list.PrettyPrint()
 	_ = list
-
-	avih, err := avi.AVIHeaderReader()
+	avih, err := avi.ChunkReader()
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
 	}
-	//	log.Printf("%#v\n", avih)
-	_ = avih
+	log.Printf("avih: %#v\n", avih)
 
 	strl, err := avi.ListHeadReader()
 	if err != nil {
 		t.Errorf("%#v \n", strl)
 	}
-	log.Printf("%#v\n", strl)
+	log.Printf("strl: %#v\n", strl)
 
-	strh, err := avi.StreamHeaderReader()
+	strh, err := avi.ChunkReader()
 	if err != nil {
 		t.Errorf("%#v\n", strh)
 	}
-	log.Printf("%#v\n", strh)
+	log.Printf("strh: %#v\n", strh)
 
 }
