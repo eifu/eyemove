@@ -34,13 +34,13 @@ func TestNewTestReader(t *testing.T) {
 	s = append(s, []byte{'\x73', '\x74', '\x72', '\x6c'}...) // strl
 	s = append(s, []byte{'\x73', '\x74', '\x72', '\x68'}...) // strh
 	s = append(s, []byte{'\x38', '\x00', '\x00', '\x00'}...) // size of stream header
-	s = append(s, []byte{'\x76', '\x69', '\x64', '\x73'}...) // vids
-	s = append(s, []byte{'\x44', '\x49', '\x42', '\x20'}...) //
-	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
-	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
-	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
-	s = append(s, []byte{'\x40', '\x42', '\x0f', '\x00'}...)
-	s = append(s, []byte{'\x80', '\xc3', '\xc9', '\x01'}...)
+	s = append(s, []byte{'\x76', '\x69', '\x64', '\x73'}...) // vids fccType
+	s = append(s, []byte{'\x44', '\x49', '\x42', '\x20'}...) // handler
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // wPriority
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // wLanguage
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // dwInitialFrames
+	s = append(s, []byte{'\x40', '\x42', '\x0f', '\x00'}...) // dwScale
+	s = append(s, []byte{'\x80', '\xc3', '\xc9', '\x01'}...) // dwRate
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\xae', '\x4a', '\x00', '\x00'}...)
 	s = append(s, []byte{'\x98', '\x4c', '\x00', '\x00'}...)
@@ -49,15 +49,20 @@ func TestNewTestReader(t *testing.T) {
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) //
 	s = append(s, []byte{'\x73', '\x74', '\x72', '\x66'}...) // strf: video stream format
-	s = append(s, []byte{'\x28', '\x04', '\x00', '\x00'}...)
-	s = append(s, []byte{'\x28', '\x00', '\x00', '\x00'}...)
-	s = append(s, []byte{'\xac', '\x00', '\x00', '\x00'}...)
-	s = append(s, []byte{'\x72', '\x00', '\x00', '\x00'}...)
-	s = append(s, []byte{'\x01', '\x00', '\x08', '\x00'}...)
+	s = append(s, []byte{'\x28', '\x04', '\x00', '\x00'}...) // size
+	s = append(s, []byte{'\x28', '\x00', '\x00', '\x00'}...) // biSize
+	s = append(s, []byte{'\xac', '\x00', '\x00', '\x00'}...) // biWidth
+	s = append(s, []byte{'\x72', '\x00', '\x00', '\x00'}...) // biHeight
+	s = append(s, []byte{'\x01', '\x00', '\x08', '\x00'}...) // biPlanes
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // biBitCount
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // biCompression
+	s = append(s, []byte{'\x98', '\x4c', '\x00', '\x00'}...) // biSizeImage
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // biXPelsPerMeter
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // biYPelsPerMeter
+	s = append(s, []byte{'\x00', '\x01', '\x00', '\x00'}...) // biClrUsed
+	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...) // biClrImportant
 	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
-	s = append(s, []byte{'\x00', '\x00', '\x00', '\x00'}...)
-	s = append(s, []byte{'\x98', '\x4c', '\x00', '\x00'}...)
-
+	s = append(s, []byte{'\x01', '\x01', '\x01', '\x00'}...)
 	avi, err := HeadReader(bytes.NewReader(s))
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
@@ -74,7 +79,7 @@ func TestNewTestReader(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
 	}
-	log.Printf("avih: %#v\n", avih)
+	avih.ChunkPrint()
 
 	strl, err := avi.ListHeadReader()
 	if err != nil {
@@ -86,12 +91,12 @@ func TestNewTestReader(t *testing.T) {
 	if err != nil {
 		t.Errorf("%#v\n", strh)
 	}
-	log.Printf("strh: %#v\n", strh)
+	strh.ChunkPrint()
 
 	strf, err := avi.ChunkReader()
 	if err != nil {
 		t.Errorf("%#v\n", strf)
 	}
-	log.Printf("strf: %#v\n", strf)
+	strf.ChunkPrint()
 
 }

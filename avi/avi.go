@@ -4,6 +4,7 @@ package avi
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -136,6 +137,9 @@ var (
 	fccMap  map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
 )
 
+func (fcc *FOURCC) String() string {
+	return string([]byte{fcc[0], fcc[1], fcc[2], fcc[3]})
+}
 func equal(a, b FOURCC) bool {
 	if a[0] != b[0] || a[1] != b[1] || a[2] != b[2] || a[3] != b[3] {
 		return false
@@ -223,6 +227,17 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 	return &ck, nil
 }
 
+func (c *Chunk) ChunkPrint() {
+	var s = ""
+
+	s += "ckID: " + c.ckID.String() + "\n"
+	s += "ckSize: " + string(c.ckSize) + "\n"
+	for k, v := range c.ckData {
+		s += k + ": " + string(v) + "\n"
+	}
+	fmt.Print(s)
+}
+
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 	log.Printf("avih size: %d\n", size)
 	buf := make([]byte, size)
@@ -282,7 +297,7 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 	log.Printf("strf size: %d\n", size)
-	buf := make([]byte, size)
+	buf := make([]byte, 44)
 	if _, err := io.ReadFull(avi.data, buf); err != nil {
 		return nil, err
 	}
