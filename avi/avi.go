@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 )
 
 var (
@@ -69,8 +68,8 @@ type Chunk struct {
 type List struct {
 	listSize [4]byte
 	listType FOURCC
-	lists    []List
-	chunks   []Chunk
+	lists    []*List
+	chunks   []*Chunk
 }
 
 // Optional elements are placed in brackets: [ optional element ]
@@ -97,6 +96,7 @@ var (
 	fccvids                 = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
 	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'} //
 	fccrec                  = FOURCC{'r', 'e', 'c', ' '} //
+	fccindx                 = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
 	fccidx1                 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
 	fccJUNK                 = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
 	fccMap  map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
@@ -160,7 +160,31 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 
 	copy(l.listType[:], buf[8:])
 
+	switch l.listType {
+	case fccstrl:
+		c, err := avi.ChunkReader()
+		if err != nil {
+			return nil, err
+		}
+		l.chunks = append(l.chunks, c)
+		c, err = avi.ChunkReader()
+		if err != nil {
+			return nil, err
+		}
+		l.chunks = append(l.chunks, c)
+	}
+
 	return &l, nil
+}
+
+func (l *List) ListPrint() {
+	fmt.Printf("List (%d) %s\n", l.listSize, l.listType.String())
+	for _, e := range l.lists {
+		e.ListPrint()
+	}
+	for _, e := range l.chunks {
+		e.ChunkPrint("\t")
+	}
 }
 
 func (avi *AVI) ChunkReader() (*Chunk, error) {
@@ -188,16 +212,15 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 	return &ck, nil
 }
 
-func (c *Chunk) ChunkPrint() {
-	fmt.Printf("ckID: %s\n", c.ckID.String())
-	fmt.Printf("ckSize: %d\n", c.ckSize)
+func (c *Chunk) ChunkPrint(indent string) {
+	fmt.Printf("%sckID: %s\n", indent, c.ckID.String())
+	fmt.Printf("%sckSize: %d\n", indent, c.ckSize)
 	for k, v := range c.ckData {
-		fmt.Printf("\t%s: %d\n", k, v)
+		fmt.Printf("%s\t%s: %d\n", indent, k, v)
 	}
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
-	log.Printf("avih size: %d\n", size)
 	buf := make([]byte, size)
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
@@ -224,7 +247,6 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 	buf := make([]byte, size)
-	log.Printf("strh size: %d\n", size)
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
@@ -254,8 +276,7 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 }
 
 func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
-	log.Printf("strf size: %d\n", size)
-	buf := make([]byte, 44)
+	buf := make([]byte, size)
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		return nil, err
 	}
