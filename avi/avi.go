@@ -6,9 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"math"
 )
 
 var (
@@ -228,14 +226,11 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 }
 
 func (c *Chunk) ChunkPrint() {
-	var s = ""
-
-	s += "ckID: " + c.ckID.String() + "\n"
-	s += "ckSize: " + string(c.ckSize) + "\n"
+	fmt.Printf("ckID: %s\n", c.ckID.String())
+	fmt.Printf("ckSize: %d\n", c.ckSize)
 	for k, v := range c.ckData {
-		s += k + ": " + string(v) + "\n"
+		fmt.Printf("\t%s: %d\n", k, v)
 	}
-	fmt.Print(s)
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
@@ -315,119 +310,4 @@ func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 	m["biClrImportant"] = decodeU32(buf[40:44])
 
 	return m, nil
-}
-
-// Reader reads chunks from an underlying io.Reader.
-type Reader struct {
-	r   io.Reader
-	err error
-
-	totalLen uint32
-	chunkLen uint32
-
-	chunkReader *chunkReader
-	buf         [8]byte
-	padded      bool
-}
-
-// Next returns the next chunk's ID, length and data. It returns io.EOF if there
-// are no more chunks. The io.Reader returned becomes stale after the next Next
-// call, and should no longer be used.
-//
-// It is valid to call Next even if all of the previous chunk's data has not
-// been read.
-func (z *Reader) Next() (FOURCC, uint32, io.Reader, error) {
-	if z.err != nil {
-		return FOURCC{}, 0, nil, z.err
-	}
-
-	// Drain the rest of the previous chunk.
-	if z.chunkLen != 0 {
-		want := z.chunkLen
-		var got int64
-		got, z.err = io.Copy(ioutil.Discard, z.chunkReader)
-		if z.err != nil {
-			return FOURCC{}, 0, nil, z.err
-		}
-		if uint32(got) != want {
-			z.err = errShortChunkData
-		}
-	}
-	z.chunkReader = nil
-	if z.padded {
-		if z.totalLen == 0 {
-			z.err = errListSubchunkTooLong
-			return FOURCC{}, 0, nil, z.err
-		}
-		z.totalLen--
-
-		if _, z.err = io.ReadFull(z.r, z.buf[:1]); z.err != nil {
-			if z.err == io.EOF { // are there any case that z.err == io.ErrUnexpectedEOF??
-				z.err = errMissingPaddingByte // what is padding byte??
-			}
-			return FOURCC{}, 0, nil, z.err
-		}
-	}
-
-	// We are done if we have no more data.
-	if z.totalLen == 0 {
-		return FOURCC{}, 0, nil, io.EOF
-	}
-
-	// Read the next chunk header.
-	if z.totalLen < 8 {
-		return FOURCC{}, 0, nil, errShortChunkHeader
-	}
-	z.totalLen -= 8
-
-	if _, z.err = io.ReadFull(z.r, z.buf[:8]); z.err != nil {
-		if z.err == io.EOF || z.err == io.ErrUnexpectedEOF {
-			z.err = errShortChunkHeader
-		}
-		return FOURCC{}, 0, nil, z.err
-	}
-	chunkID := FOURCC{z.buf[0], z.buf[1], z.buf[2], z.buf[3]}
-	z.chunkLen = decodeU32(z.buf[4:])
-	if z.chunkLen > z.totalLen {
-		return FOURCC{}, 0, nil, errListSubchunkTooLong
-	}
-	z.padded = z.chunkLen&1 == 1
-	z.chunkReader = &chunkReader{z}
-	return chunkID, z.chunkLen, z.chunkReader, nil
-}
-
-type chunkReader struct {
-	z *Reader
-}
-
-func (c *chunkReader) Read(p []byte) (int, error) {
-	if c != c.z.chunkReader {
-		return 0, errStaleReader
-	}
-	z := c.z
-	if z.err != nil {
-		if z.err == io.EOF {
-			return 0, errStaleReader
-		}
-		return 0, z.err
-	}
-
-	n := int(z.chunkLen)
-	if n == 0 {
-		return 0, io.EOF
-	}
-	if n < 0 {
-		// Converting uint32 to int overflowed.
-		n = math.MaxInt32
-	}
-	if n > len(p) {
-		n = len(p)
-	}
-	n, err := z.r.Read(p[:n])
-	z.totalLen -= uint32(n)
-	z.chunkLen -= uint32(n)
-	if err != io.EOF {
-		z.err = err
-	}
-	return n, err
 }
