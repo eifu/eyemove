@@ -66,7 +66,7 @@ type Chunk struct {
 // 'LIST' listSize listType listData
 // listSize includes size of listType, listdata, but not include 'LIST', listSize
 type List struct {
-	listSize [4]byte
+	listSize uint32
 	listType FOURCC
 	lists    []*List
 	chunks   []*Chunk
@@ -156,8 +156,7 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 		return nil, errShortListHeader
 	}
 
-	copy(l.listSize[:], buf[4:8])
-
+	l.listSize = decodeU32(buf[4:8])
 	copy(l.listType[:], buf[8:])
 
 	switch l.listType {
