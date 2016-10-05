@@ -176,13 +176,13 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 	return &l, nil
 }
 
-func (l *List) ListPrint() {
-	fmt.Printf("List (%d) %s\n", l.listSize, l.listType.String())
+func (l *List) ListPrint(indent string) {
+	fmt.Printf("%sList (%d) %s\n", indent, l.listSize, l.listType.String())
 	for _, e := range l.lists {
-		e.ListPrint()
+		e.ListPrint(indent + "\t")
 	}
 	for _, e := range l.chunks {
-		e.ChunkPrint("\t")
+		e.ChunkPrint(indent + "\t")
 	}
 }
 
@@ -225,13 +225,13 @@ func (c *Chunk) ChunkPrint(indent string) {
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 	buf := make([]byte, size)
+
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
 		return nil, err
 	}
-
 	m := make(map[string]uint32)
 
 	m["dwMicroSecPerFrame"] = decodeU32(buf[:4])
@@ -283,6 +283,7 @@ func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		return nil, err
 	}
+
 	m := make(map[string]uint32)
 	m["biSize"] = decodeU32(buf[:4])
 	m["biWidth"] = decodeU32(buf[4:8])
