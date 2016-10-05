@@ -46,55 +46,16 @@ func encode(chunkID, contents string) string {
 // FourCC is a four character code.
 type FOURCC [4]byte
 
-// 'RIFF' fileSize fileType (data)
+// 'RIFF' fileSize fileType data
 // fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
 type AVI struct {
 	fileSize [4]byte
-	data     io.Reader
-}
-
-type AVIHeader struct {
-	fcc                   FOURCC
-	cb                    uint32
-	dwMicroSecPerFrame    uint32
-	dwMaxBytesPerSec      uint32
-	dwPaddingGranularity  uint32
-	dwFlags               uint32
-	dwTotalFrames         uint32
-	dwInitialFrames       uint32
-	dwStreams             uint32
-	dwSuggestedBufferSize uint32
-	dwWidth               uint32
-	dwHeight              uint32
-	dwReserved            uint32
-}
-
-type StrHeader struct {
-	fcc                   FOURCC
-	cb                    uint32
-	fccType               FOURCC
-	fccHandler            FOURCC
-	dwFlags               uint32
-	wPriority             uint32
-	wLanguage             uint32
-	dwInitialFrames       uint32
-	dwScale               uint32
-	dwRate                uint32
-	dwStart               uint32
-	dwLength              uint32
-	dwSuggestedBufferSize uint32
-	dwQuality             uint32
-	dwSampleSize          uint32
-	rcFrame               [4]uint32
-}
-
-// StrFormat is the same as BITFORMAT
-type StrFormat struct {
+	lists    []List
+	opts     []Opt
+	r        io.Reader
 }
 
 // ckID ckSize ckData
-//
-// ckID FOUCC, ckSize uint32, ckData io.Reader
 // ckSize includes size of ckData, but not include size of padding, ckID, ckSize
 // The data is always padded to nearest WORD boundary.
 type Chunk struct {
@@ -108,7 +69,13 @@ type Chunk struct {
 type List struct {
 	listSize [4]byte
 	listType FOURCC
-	listData io.Reader
+	lists    []List
+	chunks   []Chunk
+}
+
+// Optional elements are placed in brackets: [ optional element ]
+type Opt struct {
+	elem uint32
 }
 
 func (l List) PrettyPrint() (string, error) {
@@ -169,7 +136,7 @@ func HeadReader(r io.Reader) (*AVI, error) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	return &AVI{fileSize: fileSize, data: r}, nil
+	return &AVI{fileSize: fileSize, r: r}, nil
 }
 
 // ListReader returns List type
@@ -177,9 +144,7 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 	var l List
 	var buf = make([]byte, 12)
 
-	r := avi.data
-
-	if _, err := io.ReadFull(r, buf); err != nil {
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
@@ -195,8 +160,6 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 
 	copy(l.listType[:], buf[8:])
 
-	l.listData = r
-
 	return &l, nil
 }
 
@@ -204,7 +167,7 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 	buf := make([]byte, 8)
 	ck := Chunk{}
 	var err error
-	if _, err = io.ReadFull(avi.data, buf); err != nil {
+	if _, err = io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
@@ -236,7 +199,7 @@ func (c *Chunk) ChunkPrint() {
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 	log.Printf("avih size: %d\n", size)
 	buf := make([]byte, size)
-	if _, err := io.ReadFull(avi.data, buf); err != nil {
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
@@ -262,7 +225,7 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 	buf := make([]byte, size)
 	log.Printf("strh size: %d\n", size)
-	if _, err := io.ReadFull(avi.data, buf); err != nil {
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
@@ -293,7 +256,7 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 	log.Printf("strf size: %d\n", size)
 	buf := make([]byte, 44)
-	if _, err := io.ReadFull(avi.data, buf); err != nil {
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		return nil, err
 	}
 	m := make(map[string]uint32)
