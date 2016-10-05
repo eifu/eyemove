@@ -215,7 +215,11 @@ func (c *Chunk) ChunkPrint(indent string) {
 	fmt.Printf("%sckID: %s\n", indent, c.ckID.String())
 	fmt.Printf("%sckSize: %d\n", indent, c.ckSize)
 	for k, v := range c.ckData {
-		fmt.Printf("%s\t%s: %d\n", indent, k, v)
+		if k == "fccType" || k == "handler" {
+			fmt.Printf("%s\t%s: %s\n", indent, k, encodeU32(v))
+		} else {
+			fmt.Printf("%s\t%s: %d\n", indent, k, v)
+		}
 	}
 }
 
