@@ -23,7 +23,20 @@ var (
 
 // u32 decodes the first four bytes of b as a little-endian integer.
 func decodeU32(b []byte) uint32 {
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+	switch len(b) {
+	case 4:
+		return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+	case 2:
+		return uint32(b[0]) | uint32(b[1])<<8
+	case 1:
+		return uint32(b[0])
+	}
+	return 0
+}
+
+func decode(s string) FOURCC {
+	return FOURCC{s[0], s[1], s[2], s[3]}
+
 }
 
 func encodeU32(u uint32) string {
@@ -84,22 +97,22 @@ func (l List) PrettyPrint() (string, error) {
 }
 
 var (
-	fccRIFF                 = FOURCC{'R', 'I', 'F', 'F'} // RIFF is super class of avi file
-	fccAVI                  = FOURCC{'A', 'V', 'I', ' '} // AVI is identifier of avi file
-	fccLIST                 = FOURCC{'L', 'I', 'S', 'T'} // LIST is identifier of LIST type
-	fcchdrl                 = FOURCC{'h', 'd', 'r', 'l'} // hdrl is header list
-	fccavih                 = FOURCC{'a', 'v', 'i', 'h'} // avih is AVI header
-	fccstrf                 = FOURCC{'s', 't', 'r', 'f'} // strf is stream format
-	fccstrl                 = FOURCC{'s', 't', 'r', 'l'} // strl is stream list
-	fccstrh                 = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
-	fccstrn                 = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
-	fccvids                 = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
-	fccmovi                 = FOURCC{'m', 'o', 'v', 'i'} //
-	fccrec                  = FOURCC{'r', 'e', 'c', ' '} //
-	fccindx                 = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
-	fccidx1                 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
-	fccJUNK                 = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
-	fccMap  map[FOURCC]bool = map[FOURCC]bool{fccRIFF: true, fccAVI: true, fccLIST: true, fcchdrl: true, fccavih: true, fccstrl: true, fccstrh: true, fccstrn: true, fccvids: true, fccmovi: true, fccrec: true, fccidx1: true}
+	fccRIFF = FOURCC{'R', 'I', 'F', 'F'} // RIFF is super class of avi file
+	fccAVI  = FOURCC{'A', 'V', 'I', ' '} // AVI is identifier of avi file
+	fccLIST = FOURCC{'L', 'I', 'S', 'T'} // LIST is identifier of LIST type
+	fcchdrl = FOURCC{'h', 'd', 'r', 'l'} // hdrl is header list
+	fccavih = FOURCC{'a', 'v', 'i', 'h'} // avih is AVI header
+	fccstrf = FOURCC{'s', 't', 'r', 'f'} // strf is stream format
+	fccstrl = FOURCC{'s', 't', 'r', 'l'} // strl is stream list
+	fccstrh = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
+	fccstrn = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
+	fccvids = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
+	fccmovi = FOURCC{'m', 'o', 'v', 'i'} //
+	fccrec  = FOURCC{'r', 'e', 'c', ' '} //
+	fccindx = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
+	fccnnix = FOURCC{'n', 'n', 'i', 'x'} // nnix is optional element in List
+	fccidx1 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
+	fccJUNK = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
 )
 
 func (fcc *FOURCC) String() string {
@@ -171,6 +184,12 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 			return nil, err
 		}
 		l.chunks = append(l.chunks, c)
+
+		c, err = avi.ChunkReader()
+		if err != nil {
+			return nil, err
+		}
+		l.chunks = append(l.chunks, c)
 	}
 
 	return &l, nil
@@ -206,6 +225,8 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 		ck.ckData, err = avi.StreamHeaderReader(ck.ckSize)
 	case fccstrf:
 		ck.ckData, err = avi.StreamFormatReader(ck.ckSize)
+	case fccindx:
+		ck.ckData, err = avi.MetaIndexReader(ck.ckSize)
 	}
 
 	return &ck, nil
@@ -215,7 +236,9 @@ func (c *Chunk) ChunkPrint(indent string) {
 	fmt.Printf("%sckID: %s\n", indent, c.ckID.String())
 	fmt.Printf("%sckSize: %d\n", indent, c.ckSize)
 	for k, v := range c.ckData {
-		if k == "fccType" || k == "handler" {
+		//		fmt.Printf("   testes   %s  %#v\n", encodeU32(v), decode(encodeU32(v)))
+		//		if fccMap[decode(encodeU32(v))] {
+		if k == "fccType" || k == "fccHandler" {
 			fmt.Printf("%s\t%s: %s\n", indent, k, encodeU32(v))
 		} else {
 			fmt.Printf("%s\t%s: %d\n", indent, k, v)
@@ -258,7 +281,7 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 	}
 	m := make(map[string]uint32)
 	m["fccType"] = decodeU32(buf[:4])
-	m["handler"] = decodeU32(buf[4:8])
+	m["fccHandler"] = decodeU32(buf[4:8])
 	m["dwFlags"] = decodeU32(buf[8:12])
 	m["wPriority"] = decodeU32(buf[12:16])
 	m["wLanguage"] = decodeU32(buf[16:20])
@@ -296,6 +319,27 @@ func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 	m["biYPelsPerMeter"] = decodeU32(buf[32:36])
 	m["biClrUsed"] = decodeU32(buf[36:40])
 	m["biClrImportant"] = decodeU32(buf[40:44])
+
+	return m, nil
+}
+
+func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
+	buf := make([]byte, size)
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]uint32)
+	m["wLongsPerEntry"] = decodeU32(buf[:2])
+	m["bIndexSubType"] = decodeU32(buf[2:3])
+	m["bIndexType"] = decodeU32(buf[3:4])
+	m["nEntriesInUse"] = decodeU32(buf[4:8])
+	m["dwChunkId"] = decodeU32(buf[8:12])
+	m["dwReserved1"] = decodeU32(buf[12:16])
+	m["dwReserved2"] = decodeU32(buf[16:20])
+	m["dwReserved3"] = decodeU32(buf[20:24])
+
+	m["adwIndex"] = decodeU32(buf[24:28])
 
 	return m, nil
 }
