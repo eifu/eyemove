@@ -44,15 +44,7 @@ func encodeU32(u uint32) string {
 		byte(u >> 0),
 		byte(u >> 8),
 		byte(u >> 16),
-		byte(u >> 2)})
-}
-
-func encode(chunkID, contents string) string {
-	n := len(contents)
-	if n&1 == 1 {
-		contents += "\x00"
-	}
-	return chunkID + encodeU32(uint32(n)) + contents
+		byte(u >> 24)})
 }
 
 // FourCC is a four character code.
@@ -67,15 +59,6 @@ type AVI struct {
 	r        io.Reader
 }
 
-// ckID ckSize ckData
-// ckSize includes size of ckData, but not include size of padding, ckID, ckSize
-// The data is always padded to nearest WORD boundary.
-type Chunk struct {
-	ckID   FOURCC
-	ckSize uint32
-	ckData map[string]uint32
-}
-
 // 'LIST' listSize listType listData
 // listSize includes size of listType, listdata, but not include 'LIST', listSize
 type List struct {
@@ -85,15 +68,24 @@ type List struct {
 	chunks   []*Chunk
 }
 
+// ckID ckSize ckData
+// ckSize includes size of ckData, but not include size of padding, ckID, ckSize
+// The data is always padded to nearest WORD boundary.
+type Chunk struct {
+	ckID   FOURCC
+	ckSize uint32
+	ckData map[string]uint32
+}
+
+type SuperIndex struct {
+	qwOffset   int64
+	dwSize     uint32
+	dwDuration uint32
+}
+
 // Optional elements are placed in brackets: [ optional element ]
 type Opt struct {
 	elem uint32
-}
-
-func (l List) PrettyPrint() (string, error) {
-	for {
-
-	}
 }
 
 var (
@@ -113,6 +105,7 @@ var (
 	fccnnix = FOURCC{'n', 'n', 'i', 'x'} // nnix is optional element in List
 	fccidx1 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
 	fccJUNK = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
+	fccodml = FOURCC{'o', 'd', 'm', 'l'} // odml is OpenDML
 )
 
 func (fcc *FOURCC) String() string {
@@ -236,9 +229,7 @@ func (c *Chunk) ChunkPrint(indent string) {
 	fmt.Printf("%sckID: %s\n", indent, c.ckID.String())
 	fmt.Printf("%sckSize: %d\n", indent, c.ckSize)
 	for k, v := range c.ckData {
-		//		fmt.Printf("   testes   %s  %#v\n", encodeU32(v), decode(encodeU32(v)))
-		//		if fccMap[decode(encodeU32(v))] {
-		if k == "fccType" || k == "fccHandler" {
+		if k == "fccType" || k == "fccHandler" || k == "dwChunkId" {
 			fmt.Printf("%s\t%s: %s\n", indent, k, encodeU32(v))
 		} else {
 			fmt.Printf("%s\t%s: %d\n", indent, k, v)
@@ -328,7 +319,7 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("buf size: %d,  content:%#v", len(buf), buf)
 	m := make(map[string]uint32)
 	m["wLongsPerEntry"] = decodeU32(buf[:2])
 	m["bIndexSubType"] = decodeU32(buf[2:3])
@@ -339,7 +330,15 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 	m["dwReserved2"] = decodeU32(buf[16:20])
 	m["dwReserved3"] = decodeU32(buf[20:24])
 
-	m["adwIndex"] = decodeU32(buf[24:28])
+	// aIndex[] part
+	switch m["bIndexType"] {
+	case 0x0:
+		m["qwOffset"] = decodeU32(buf[24:32])
+		m["dwSize"] = decodeU32(buf[32:36])
+		m["dwDuration"] = decodeU32(buf[36:40])
+	}
+
+	// TODO: aIndex[] might store multiple items.
 
 	return m, nil
 }

@@ -443,4 +443,10 @@ func TestNewTestReader(t *testing.T) {
 	}
 	strl.ListPrint("")
 
+	odml, err := avi.ListHeadReader()
+	if err != nil {
+		t.Error("%#v \n")
+	}
+	odml.ListPrint("")
+
 }
