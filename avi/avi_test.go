@@ -425,28 +425,19 @@ func TestNewTestReader(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
 	}
+	avi.AVIPrint()
 
-	list, err := avi.ListHeadReader()
+	list, err := avi.ListReader()
 	if err != nil {
 		t.Errorf(" %#v %s", s, err)
 	}
-	_ = list
-	avih, err := avi.ChunkReader()
-	if err != nil {
-		t.Errorf(" %#v %s", s, err)
-	}
-	avih.ChunkPrint("")
-
-	strl, err := avi.ListHeadReader()
-	if err != nil {
-		t.Errorf("%#v \n", strl)
-	}
-	strl.ListPrint("")
-
-	odml, err := avi.ListHeadReader()
-	if err != nil {
-		t.Error("%#v \n")
-	}
-	odml.ListPrint("")
+	list.ListPrint("")
+	/*
+		strl, err := avi.ListReader()
+		if err != nil {
+			t.Errorf("%#v \n", strl)
+		}
+		strl.ListPrint("")
+	*/
 
 }

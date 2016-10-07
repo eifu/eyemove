@@ -95,8 +95,8 @@ var (
 	fccstrh = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
 	fccstrn = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
 	fccvids = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
-	fccmovi = FOURCC{'m', 'o', 'v', 'i'} //
-	fccrec  = FOURCC{'r', 'e', 'c', ' '} //
+	fccmovi = FOURCC{'m', 'o', 'v', 'i'} // movi
+	fccrec  = FOURCC{'r', 'e', 'c', ' '} // rec
 	fccindx = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
 	fccnnix = FOURCC{'n', 'n', 'i', 'x'} // nnix is optional element in List
 	fccidx1 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
@@ -152,11 +152,13 @@ func (avi *AVI) AVIPrint() {
 
 func (l *List) ListPrint(indent string) {
 	fmt.Printf("%sList (%d) %s\n", indent, l.listSize, l.listType.String())
-	for _, e := range l.lists {
-		e.ListPrint(indent + "\t")
-	}
+
 	for _, e := range l.chunks {
 		e.ChunkPrint(indent + "\t")
+	}
+
+	for _, e := range l.lists {
+		e.ListPrint(indent + "\t")
 	}
 }
 
@@ -199,6 +201,16 @@ func (avi *AVI) ListReader() (*List, error) {
 	copy(l.listType[:], buf[8:])
 
 	switch l.listType {
+	case fcchdrl:
+		if err := avi.ChunkReader(&l); err != nil {
+			return nil, err
+		}
+		l2, err := avi.ListReader()
+		if err != nil {
+			return nil, err
+		}
+		l.lists = append(l.lists, l2)
+
 	case fccstrl:
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
@@ -209,6 +221,11 @@ func (avi *AVI) ListReader() (*List, error) {
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
+		l2, err := avi.ListReader()
+		if err != nil {
+			return nil, err
+		}
+		l.lists = append(l.lists, l2)
 
 	case fccodml:
 		if err := avi.ChunkReader(&l); err != nil {
