@@ -49,7 +49,7 @@ type FOURCC [4]byte
 // 'RIFF' fileSize fileType data
 // fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
 type AVI struct {
-	fileSize [4]byte
+	fileSize uint32
 	lists    []List
 	opts     []Opt
 	r        io.Reader
@@ -81,7 +81,7 @@ type SuperIndex struct {
 
 // Optional elements are placed in brackets: [ optional element ]
 type Opt struct {
-	elem uint32
+	elems []uint32
 }
 
 var (
@@ -131,14 +131,12 @@ func HeadReader(r io.Reader) (*AVI, error) {
 		return nil, errMissingRIFFChunkHeader
 	}
 
-	var fileSize [4]byte = [4]byte{buf[4], buf[5], buf[6], buf[7]}
-
 	// Make sure the 9th to 11th bytes is 'AVI '
 	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	return &AVI{fileSize: fileSize, r: r}, nil
+	return &AVI{fileSize: decodeU32(buf[4:8]), r: r}, nil
 }
 
 // ListReader returns List type
@@ -179,9 +177,26 @@ func (avi *AVI) ListHeadReader() (*List, error) {
 			return nil, err
 		}
 		l.chunks = append(l.chunks, c)
+
+	case fccodml:
+		c, err := avi.ChunkReader()
+		if err != nil {
+			return nil, err
+		}
+		l.chunks = append(l.chunks, c)
 	}
 
 	return &l, nil
+}
+
+func (avi *AVI) AVIPrint() {
+	fmt.Printf("AVI (%d)\n", avi.fileSize)
+	for _, l := range avi.lists {
+		l.ListPrint("")
+	}
+	for _, o := range avi.opts {
+		o.OptPrint("")
+	}
 }
 
 func (l *List) ListPrint(indent string) {
@@ -191,6 +206,24 @@ func (l *List) ListPrint(indent string) {
 	}
 	for _, e := range l.chunks {
 		e.ChunkPrint(indent + "\t")
+	}
+}
+
+func (c *Chunk) ChunkPrint(indent string) {
+	fmt.Printf("%s%s(%d)\n", indent, c.ckID, c.ckSize)
+	for k, v := range c.ckData {
+		if k == "fccType" || k == "fccHandler" || k == "dwChunkId" {
+			fmt.Printf("%s\t%s: %s\n", indent, k, encodeU32(v))
+		} else {
+			fmt.Printf("%s\t%s: %d\n", indent, k, v)
+		}
+	}
+}
+
+func (opt *Opt) OptPrint(indent string) {
+	fmt.Printf("%sOpt", indent)
+	for _, elem := range opt.elems {
+		fmt.Printf("%s\t%d ", indent, elem)
 	}
 }
 
@@ -219,18 +252,6 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 	}
 
 	return &ck, nil
-}
-
-func (c *Chunk) ChunkPrint(indent string) {
-	fmt.Printf("%sckID: %s\n", indent, c.ckID)
-	fmt.Printf("%sckSize: %d\n", indent, c.ckSize)
-	for k, v := range c.ckData {
-		if k == "fccType" || k == "fccHandler" || k == "dwChunkId" {
-			fmt.Printf("%s\t%s: %s\n", indent, k, encodeU32(v))
-		} else {
-			fmt.Printf("%s\t%s: %d\n", indent, k, v)
-		}
-	}
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
@@ -315,7 +336,7 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		return nil, err
 	}
-	fmt.Printf("buf size: %d,  content:%#v", len(buf), buf)
+	//fmt.Printf("buf size: %d,  content:%#v", len(buf), buf)
 	m := make(map[string]uint32)
 	m["wLongsPerEntry"] = decodeU32(buf[:2])
 	m["bIndexSubType"] = decodeU32(buf[2:3])
