@@ -31,7 +31,7 @@ func decodeU32(b []byte) uint32 {
 	case 1:
 		return uint32(b[0])
 	}
-	return 0
+	panic("length must be 4, 2, or 1")
 }
 
 func decode(s string) FOURCC {
@@ -39,12 +39,8 @@ func decode(s string) FOURCC {
 
 }
 
-func encodeU32(u uint32) string {
-	return string([]byte{
-		byte(u >> 0),
-		byte(u >> 8),
-		byte(u >> 16),
-		byte(u >> 24)})
+func encodeU32(u uint32) *FOURCC {
+	return &FOURCC{byte(u >> 0), byte(u >> 8), byte(u >> 16), byte(u >> 24)}
 }
 
 // FourCC is a four character code.
@@ -226,7 +222,7 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 }
 
 func (c *Chunk) ChunkPrint(indent string) {
-	fmt.Printf("%sckID: %s\n", indent, c.ckID.String())
+	fmt.Printf("%sckID: %s\n", indent, c.ckID)
 	fmt.Printf("%sckSize: %d\n", indent, c.ckSize)
 	for k, v := range c.ckData {
 		if k == "fccType" || k == "fccHandler" || k == "dwChunkId" {
@@ -333,7 +329,8 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 	// aIndex[] part
 	switch m["bIndexType"] {
 	case 0x0:
-		m["qwOffset"] = decodeU32(buf[24:32])
+		m["qwOffset1"] = decodeU32(buf[24:28])
+		m["qwOffset2"] = decodeU32(buf[28:32])
 		m["dwSize"] = decodeU32(buf[32:36])
 		m["dwDuration"] = decodeU32(buf[36:40])
 	}
