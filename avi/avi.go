@@ -200,35 +200,26 @@ func (avi *AVI) ListReader() (*List, error) {
 
 	switch l.listType {
 	case fccstrl:
-		c, err := avi.ChunkReader()
-		if err != nil {
+		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-		l.chunks = append(l.chunks, c)
-
-		c, err = avi.ChunkReader()
-		if err != nil {
+		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-		l.chunks = append(l.chunks, c)
-		c, err = avi.ChunkReader()
-		if err != nil {
+		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-		l.chunks = append(l.chunks, c)
 
 	case fccodml:
-		c, err := avi.ChunkReader()
-		if err != nil {
+		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-		l.chunks = append(l.chunks, c)
 	}
 
 	return &l, nil
 }
 
-func (avi *AVI) ChunkReader() (*Chunk, error) {
+func (avi *AVI) ChunkReader(l *List) error {
 	buf := make([]byte, 8)
 	ck := Chunk{}
 	var err error
@@ -236,7 +227,7 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
-		return nil, err
+		return err
 	}
 
 	copy(ck.ckID[:], buf[:4])
@@ -254,7 +245,8 @@ func (avi *AVI) ChunkReader() (*Chunk, error) {
 		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
 	}
 
-	return &ck, nil
+	l.chunks = append(l.chunks, &ck)
+	return nil
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
