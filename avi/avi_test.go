@@ -432,12 +432,5 @@ func TestNewTestReader(t *testing.T) {
 		t.Errorf(" %#v %s", s, err)
 	}
 	list.ListPrint("")
-	/*
-		strl, err := avi.ListReader()
-		if err != nil {
-			t.Errorf("%#v \n", strl)
-		}
-		strl.ListPrint("")
-	*/
 
 }

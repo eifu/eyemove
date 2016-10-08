@@ -62,6 +62,7 @@ type List struct {
 	listType FOURCC
 	lists    []*List
 	chunks   []*Chunk
+	junkSize uint32
 }
 
 // ckID ckSize ckData
@@ -160,6 +161,9 @@ func (l *List) ListPrint(indent string) {
 	for _, e := range l.lists {
 		e.ListPrint(indent + "\t")
 	}
+	if l.junkSize != 0 {
+		fmt.Printf("\tJUNK (%d)\n", l.junkSize)
+	}
 }
 
 func (c *Chunk) ChunkPrint(indent string) {
@@ -198,7 +202,7 @@ func (avi *AVI) ListReader() (*List, error) {
 	}
 
 	l.listSize = decodeU32(buf[4:8])
-	copy(l.listType[:], buf[8:])
+	copy(l.listType[:], buf[8:12])
 
 	switch l.listType {
 	case fcchdrl:
@@ -211,6 +215,13 @@ func (avi *AVI) ListReader() (*List, error) {
 		}
 		l.lists = append(l.lists, l2)
 
+		l3, err := avi.ListReader()
+		if err != nil {
+			return nil, err
+		}
+		l.lists = append(l.lists, l3)
+		avi.JUNKReader(&l)
+
 	case fccstrl:
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
@@ -221,11 +232,6 @@ func (avi *AVI) ListReader() (*List, error) {
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-		l2, err := avi.ListReader()
-		if err != nil {
-			return nil, err
-		}
-		l.lists = append(l.lists, l2)
 
 	case fccodml:
 		if err := avi.ChunkReader(&l); err != nil {
@@ -263,6 +269,25 @@ func (avi *AVI) ChunkReader(l *List) error {
 	}
 
 	l.chunks = append(l.chunks, &ck)
+	return nil
+}
+func (avi *AVI) JUNKReader(l *List) error {
+	buf := make([]byte, 8)
+
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
+		return err
+	}
+	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccJUNK) {
+		return errMissingKeywordHeader
+	}
+	l.junkSize = decodeU32(buf[4:8])
+
+	buf = make([]byte, l.junkSize)
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
+		return err
+	}
+	fmt.Printf("%#v", buf)
+
 	return nil
 }
 
