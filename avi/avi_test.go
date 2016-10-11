@@ -2,8 +2,34 @@ package avi
 
 import (
 	"bytes"
+	"os"
 	"testing"
 )
+
+func TestRealAVIFile(t *testing.T) {
+	file, err := os.Open("test1.avi") // For read access.
+	if err != nil {
+		t.Error(err)
+	}
+
+	data := make([]byte, 65792)
+	if _, err = file.Read(data); err != nil {
+		t.Error(err)
+	}
+
+	avi, err := HeadReader(bytes.NewReader(data))
+	if err != nil {
+		t.Errorf(" %#v %s", data, err)
+	}
+	avi.AVIPrint()
+
+	list, err := avi.ListReader()
+	if err != nil {
+		t.Errorf(" %#v %s", data, err)
+	}
+	list.ListPrint("")
+
+}
 
 func TestNewTestReader(t *testing.T) {
 	s := []byte{'\x52', '\x49', '\x46', '\x46'}              // RIFF
