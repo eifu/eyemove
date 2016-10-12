@@ -47,7 +47,7 @@ func encodeU32(u uint32) *FOURCC {
 type FOURCC [4]byte
 
 // 'RIFF' fileSize fileType data
-// fileSize includes size of fileType, data but not include size of fileSize, 'RIFF'
+// fileSize includes size of fileType(FOURCC), data(io.Reader)
 type AVI struct {
 	fileSize uint32
 	lists    []List
@@ -56,13 +56,13 @@ type AVI struct {
 }
 
 // 'LIST' listSize listType listData
-// listSize includes size of listType, listdata, but not include 'LIST', listSize
+// listSize includes size of listType(FOURCC), listdata(io.Reader)
 type List struct {
 	listSize uint32
 	listType FOURCC
 	lists    []*List
 	chunks   []*Chunk
-	junkSize uint32
+	junkSize uint32 // JUNK is only in
 }
 
 // ckID ckSize ckData
@@ -220,7 +220,9 @@ func (avi *AVI) ListReader() (*List, error) {
 			return nil, err
 		}
 		l.lists = append(l.lists, l3)
-		avi.JUNKReader(&l)
+		if err := avi.JUNKReader(&l); err != nil {
+			return nil, err
+		}
 
 	case fccstrl:
 		if err := avi.ChunkReader(&l); err != nil {
@@ -286,7 +288,6 @@ func (avi *AVI) JUNKReader(l *List) error {
 	if _, err := io.ReadFull(avi.r, buf); err != nil {
 		return err
 	}
-	fmt.Printf("%#v", buf)
 
 	return nil
 }

@@ -2,6 +2,7 @@ package avi
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -12,7 +13,7 @@ func TestRealAVIFile(t *testing.T) {
 		t.Error(err)
 	}
 
-	data := make([]byte, 65792)
+	data := make([]byte, 65812)
 	if _, err = file.Read(data); err != nil {
 		t.Error(err)
 	}
@@ -27,10 +28,17 @@ func TestRealAVIFile(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %#v %s", data, err)
 	}
-	list.ListPrint("")
 
+	list.ListPrint("")
+	fmt.Printf("%#v\n", list)
+	data = make([]byte, 32)
+	if _, err = file.Read(data); err != nil {
+		t.Errorf(" %#v %s", data, err)
+	}
+	fmt.Println(data)
 }
 
+/*
 func TestNewTestReader(t *testing.T) {
 	s := []byte{'\x52', '\x49', '\x46', '\x46'}              // RIFF
 	s = append(s, []byte{'\x50', '\x56', '\x62', '\x16'}...) // fileSize
@@ -460,3 +468,4 @@ func TestNewTestReader(t *testing.T) {
 	list.ListPrint("")
 
 }
+*/
