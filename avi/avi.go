@@ -117,10 +117,10 @@ func equal(a, b FOURCC) bool {
 func (avi *AVI) AVIPrint() {
 	fmt.Printf("AVI (%d)\n", avi.fileSize)
 	for _, l := range avi.lists {
-		l.ListPrint("")
+		l.ListPrint("\t")
 	}
 	for _, o := range avi.opts {
-		o.OptPrint("")
+		o.OptPrint("\t")
 	}
 }
 
@@ -179,7 +179,16 @@ func HeadReader(r io.Reader) (*AVI, error) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	return &AVI{fileSize: decodeU32(buf[4:8]), r: r}, nil
+	avi := &AVI{fileSize: decodeU32(buf[4:8]), r: r}
+
+	list, err := avi.ListReader()
+	if err != nil {
+		return nil, err
+	}
+
+	avi.lists = append(avi.lists, *list)
+
+	return avi, nil
 }
 
 // ListReader returns List type
