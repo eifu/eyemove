@@ -19,29 +19,26 @@ var (
 	errShortListData          = errors.New("avi: short list data")
 	errShortListHeader        = errors.New("avi: short list header")
 	errStaleReader            = errors.New("avi: stale reader")
+
+	fccRIFF = FOURCC{'R', 'I', 'F', 'F'} // RIFF is super class of avi file
+	fccAVI  = FOURCC{'A', 'V', 'I', ' '} // AVI is identifier of avi file
+	fccLIST = FOURCC{'L', 'I', 'S', 'T'} // LIST is identifier of LIST type
+	fcchdrl = FOURCC{'h', 'd', 'r', 'l'} // hdrl is header list
+	fccavih = FOURCC{'a', 'v', 'i', 'h'} // avih is AVI header
+	fccstrf = FOURCC{'s', 't', 'r', 'f'} // strf is stream format
+	fccstrl = FOURCC{'s', 't', 'r', 'l'} // strl is stream list
+	fccstrh = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
+	fccstrn = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
+	fccvids = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
+	fccmovi = FOURCC{'m', 'o', 'v', 'i'} // movi
+	fccrec  = FOURCC{'r', 'e', 'c', ' '} // rec
+	fccindx = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
+	fccnnix = FOURCC{'n', 'n', 'i', 'x'} // nnix is optional element in List
+	fccidx1 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
+	fccJUNK = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
+	fccodml = FOURCC{'o', 'd', 'm', 'l'} // odml is OpenDML
+	fccdmlh = FOURCC{'d', 'm', 'l', 'h'} // dmlh is OpenDML header
 )
-
-// u32 decodes the first four bytes of b as a little-endian integer.
-func decodeU32(b []byte) uint32 {
-	switch len(b) {
-	case 4:
-		return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
-	case 2:
-		return uint32(b[0]) | uint32(b[1])<<8
-	case 1:
-		return uint32(b[0])
-	}
-	panic("length must be 4, 2, or 1")
-}
-
-func decode(s string) FOURCC {
-	return FOURCC{s[0], s[1], s[2], s[3]}
-
-}
-
-func encodeU32(u uint32) *FOURCC {
-	return &FOURCC{byte(u >> 0), byte(u >> 8), byte(u >> 16), byte(u >> 24)}
-}
 
 // FourCC is a four character code.
 type FOURCC [4]byte
@@ -85,26 +82,27 @@ type Opt struct {
 	elems []uint32
 }
 
-var (
-	fccRIFF = FOURCC{'R', 'I', 'F', 'F'} // RIFF is super class of avi file
-	fccAVI  = FOURCC{'A', 'V', 'I', ' '} // AVI is identifier of avi file
-	fccLIST = FOURCC{'L', 'I', 'S', 'T'} // LIST is identifier of LIST type
-	fcchdrl = FOURCC{'h', 'd', 'r', 'l'} // hdrl is header list
-	fccavih = FOURCC{'a', 'v', 'i', 'h'} // avih is AVI header
-	fccstrf = FOURCC{'s', 't', 'r', 'f'} // strf is stream format
-	fccstrl = FOURCC{'s', 't', 'r', 'l'} // strl is stream list
-	fccstrh = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
-	fccstrn = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
-	fccvids = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
-	fccmovi = FOURCC{'m', 'o', 'v', 'i'} // movi
-	fccrec  = FOURCC{'r', 'e', 'c', ' '} // rec
-	fccindx = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
-	fccnnix = FOURCC{'n', 'n', 'i', 'x'} // nnix is optional element in List
-	fccidx1 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
-	fccJUNK = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
-	fccodml = FOURCC{'o', 'd', 'm', 'l'} // odml is OpenDML
-	fccdmlh = FOURCC{'d', 'm', 'l', 'h'} // dmlh is OpenDML header
-)
+// u32 decodes the first four bytes of b as a little-endian integer.
+func decodeU32(b []byte) uint32 {
+	switch len(b) {
+	case 4:
+		return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+	case 2:
+		return uint32(b[0]) | uint32(b[1])<<8
+	case 1:
+		return uint32(b[0])
+	}
+	panic("length must be 4, 2, or 1")
+}
+
+func decode(s string) FOURCC {
+	return FOURCC{s[0], s[1], s[2], s[3]}
+
+}
+
+func encodeU32(u uint32) *FOURCC {
+	return &FOURCC{byte(u >> 0), byte(u >> 8), byte(u >> 16), byte(u >> 24)}
+}
 
 func (fcc *FOURCC) String() string {
 	return string([]byte{fcc[0], fcc[1], fcc[2], fcc[3]})
@@ -114,31 +112,6 @@ func equal(a, b FOURCC) bool {
 		return false
 	}
 	return true
-}
-
-// NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
-// its chunks as a *Reader.
-func HeadReader(r io.Reader) (*AVI, error) {
-	buf := make([]byte, 12)
-
-	// Make sure that io.Reader has enough stuff to read.
-	if _, err := io.ReadFull(r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errMissingKeywordHeader
-		}
-		return nil, err
-	}
-	// Make sure the first FOURCC lieral is 'RIFF'
-	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF) {
-		return nil, errMissingRIFFChunkHeader
-	}
-
-	// Make sure the 9th to 11th bytes is 'AVI '
-	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI) {
-		return nil, errMissingAVIChunkHeader
-	}
-
-	return &AVI{fileSize: decodeU32(buf[4:8]), r: r}, nil
 }
 
 func (avi *AVI) AVIPrint() {
@@ -182,6 +155,31 @@ func (opt *Opt) OptPrint(indent string) {
 	for _, elem := range opt.elems {
 		fmt.Printf("%s\t%d ", indent, elem)
 	}
+}
+
+// NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
+// its chunks as a *Reader.
+func HeadReader(r io.Reader) (*AVI, error) {
+	buf := make([]byte, 12)
+
+	// Make sure that io.Reader has enough stuff to read.
+	if _, err := io.ReadFull(r, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errMissingKeywordHeader
+		}
+		return nil, err
+	}
+	// Make sure the first FOURCC lieral is 'RIFF'
+	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF) {
+		return nil, errMissingRIFFChunkHeader
+	}
+
+	// Make sure the 9th to 11th bytes is 'AVI '
+	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI) {
+		return nil, errMissingAVIChunkHeader
+	}
+
+	return &AVI{fileSize: decodeU32(buf[4:8]), r: r}, nil
 }
 
 // ListReader returns List type
