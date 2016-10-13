@@ -193,6 +193,7 @@ func HeadReader(r io.Reader) (*AVI, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	avi.lists = append(avi.lists, list)
 
 	return avi, nil
@@ -254,6 +255,12 @@ func (avi *AVI) ListReader() (*List, error) {
 			return nil, err
 		}
 	case fccmovi:
+		// 00db chunk
+		if err := avi.ChunkReader(&l); err != nil {
+			return nil, err
+		}
+
+		// 00db chunk
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
