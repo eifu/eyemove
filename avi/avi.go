@@ -47,7 +47,7 @@ type FOURCC [4]byte
 // fileSize includes size of fileType(FOURCC), data(io.Reader)
 type AVI struct {
 	fileSize uint32
-	lists    []List
+	lists    []*List
 	opts     []Opt
 	r        io.Reader
 }
@@ -135,7 +135,7 @@ func (l *List) ListPrint(indent string) {
 		e.ListPrint(indent + "\t")
 	}
 	if l.junkSize != 0 {
-		fmt.Printf("\tJUNK (%d)\n", l.junkSize)
+		fmt.Printf("\t%sJUNK (%d)\n", indent, l.junkSize)
 	}
 }
 
@@ -186,7 +186,7 @@ func HeadReader(r io.Reader) (*AVI, error) {
 		return nil, err
 	}
 
-	avi.lists = append(avi.lists, *list)
+	avi.lists = append(avi.lists, list)
 
 	return avi, nil
 }
