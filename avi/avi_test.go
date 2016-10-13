@@ -13,7 +13,7 @@ func TestRealAVIFile(t *testing.T) {
 		t.Error(err)
 	}
 
-	data := make([]byte, 65824)
+	data := make([]byte, 85432)
 	if _, err = file.Read(data); err != nil {
 		t.Error(err)
 	}

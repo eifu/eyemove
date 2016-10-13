@@ -20,24 +20,25 @@ var (
 	errShortListHeader        = errors.New("avi: short list header")
 	errStaleReader            = errors.New("avi: stale reader")
 
-	fccRIFF = FOURCC{'R', 'I', 'F', 'F'} // RIFF is super class of avi file
-	fccAVI  = FOURCC{'A', 'V', 'I', ' '} // AVI is identifier of avi file
-	fccLIST = FOURCC{'L', 'I', 'S', 'T'} // LIST is identifier of LIST type
-	fcchdrl = FOURCC{'h', 'd', 'r', 'l'} // hdrl is header list
-	fccavih = FOURCC{'a', 'v', 'i', 'h'} // avih is AVI header
-	fccstrf = FOURCC{'s', 't', 'r', 'f'} // strf is stream format
-	fccstrl = FOURCC{'s', 't', 'r', 'l'} // strl is stream list
-	fccstrh = FOURCC{'s', 't', 'r', 'h'} // strh is stream header
-	fccstrn = FOURCC{'s', 't', 'r', 'n'} // strn is stream name
-	fccvids = FOURCC{'v', 'i', 'd', 's'} // vids is fccType of stream
-	fccmovi = FOURCC{'m', 'o', 'v', 'i'} // movi
-	fccrec  = FOURCC{'r', 'e', 'c', ' '} // rec
-	fccindx = FOURCC{'i', 'n', 'd', 'x'} // indx is optional elememt in List
-	fccnnix = FOURCC{'n', 'n', 'i', 'x'} // nnix is optional element in List
-	fccidx1 = FOURCC{'i', 'd', 'x', '1'} // idx1 is indexer of image files
-	fccJUNK = FOURCC{'J', 'U', 'N', 'K'} // JUNK is data unused.
-	fccodml = FOURCC{'o', 'd', 'm', 'l'} // odml is OpenDML
-	fccdmlh = FOURCC{'d', 'm', 'l', 'h'} // dmlh is OpenDML header
+	fccRIFF = FOURCC{'R', 'I', 'F', 'F'}       // RIFF is super class of avi file
+	fccAVI  = FOURCC{'A', 'V', 'I', ' '}       // AVI is identifier of avi file
+	fccLIST = FOURCC{'L', 'I', 'S', 'T'}       // LIST is identifier of LIST type
+	fcchdrl = FOURCC{'h', 'd', 'r', 'l'}       // hdrl is header list
+	fccavih = FOURCC{'a', 'v', 'i', 'h'}       // avih is AVI header
+	fccstrf = FOURCC{'s', 't', 'r', 'f'}       // strf is stream format
+	fccstrl = FOURCC{'s', 't', 'r', 'l'}       // strl is stream list
+	fccstrh = FOURCC{'s', 't', 'r', 'h'}       // strh is stream header
+	fccstrn = FOURCC{'s', 't', 'r', 'n'}       // strn is stream name
+	fccvids = FOURCC{'v', 'i', 'd', 's'}       // vids is fccType of stream
+	fccmovi = FOURCC{'m', 'o', 'v', 'i'}       // movi
+	fccdb   = FOURCC{'\x30', '\x30', 'd', 'b'} // db is DIB file type
+	fccrec  = FOURCC{'r', 'e', 'c', ' '}       // rec
+	fccindx = FOURCC{'i', 'n', 'd', 'x'}       // indx is optional elememt in List
+	fccnnix = FOURCC{'n', 'n', 'i', 'x'}       // nnix is optional element in List
+	fccidx1 = FOURCC{'i', 'd', 'x', '1'}       // idx1 is indexer of image files
+	fccJUNK = FOURCC{'J', 'U', 'N', 'K'}       // JUNK is data unused.
+	fccodml = FOURCC{'o', 'd', 'm', 'l'}       // odml is OpenDML
+	fccdmlh = FOURCC{'d', 'm', 'l', 'h'}       // dmlh is OpenDML header
 )
 
 // FourCC is a four character code.
@@ -249,6 +250,10 @@ func (avi *AVI) ListReader() (*List, error) {
 		}
 
 	case fccodml:
+		if err := avi.ChunkReader(&l); err != nil {
+			return nil, err
+		}
+	case fccmovi:
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
