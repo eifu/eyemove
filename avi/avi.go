@@ -31,7 +31,7 @@ var (
 	fccstrn = FOURCC{'s', 't', 'r', 'n'}       // strn is stream name
 	fccvids = FOURCC{'v', 'i', 'd', 's'}       // vids is fccType of stream
 	fccmovi = FOURCC{'m', 'o', 'v', 'i'}       // movi
-	fccdb   = FOURCC{'\x30', '\x30', 'd', 'b'} // db is DIB file type
+	fccdb   = FOURCC{'\x30', '\x30', 'd', 'b'} // db is uncompressed video frame
 	fccrec  = FOURCC{'r', 'e', 'c', ' '}       // rec
 	fccindx = FOURCC{'i', 'n', 'd', 'x'}       // indx is optional elememt in List
 	fccnnix = FOURCC{'n', 'n', 'i', 'x'}       // nnix is optional element in List
@@ -286,9 +286,11 @@ func (avi *AVI) ChunkReader(l *List) error {
 		ck.ckData, err = avi.MetaIndexReader(ck.ckSize)
 	case fccdmlh:
 		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
+	case fccdb:
+		ck.ckData, err = avi.DBReader(ck.ckSize)
 	}
 
-	l.chunks = append(l.chunks, &ck)
+	l.chunks = append(l.chunks, &ck) // add chunk object ck to l.chunks
 	return nil
 }
 func (avi *AVI) JUNKReader(l *List) error {
@@ -426,4 +428,16 @@ func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) 
 	m := make(map[string]uint32)
 	m["dwTotalFrames"] = decodeU32(buf[:4])
 	return m, nil
+}
+
+func (avi *AVI) DBReader(size uint32) (map[string]uint32, error) {
+
+	buf := make([]byte, size)
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]uint32)
+	return m, nil
+
 }
