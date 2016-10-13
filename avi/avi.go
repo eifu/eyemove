@@ -188,6 +188,12 @@ func HeadReader(r io.Reader) (*AVI, error) {
 
 	avi.lists = append(avi.lists, list)
 
+	list, err = avi.ListReader()
+	if err != nil {
+		return nil, err
+	}
+	avi.lists = append(avi.lists, list)
+
 	return avi, nil
 }
 

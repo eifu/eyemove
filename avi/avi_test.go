@@ -13,7 +13,7 @@ func TestRealAVIFile(t *testing.T) {
 		t.Error(err)
 	}
 
-	data := make([]byte, 65812)
+	data := make([]byte, 65824)
 	if _, err = file.Read(data); err != nil {
 		t.Error(err)
 	}
@@ -24,19 +24,6 @@ func TestRealAVIFile(t *testing.T) {
 	}
 	avi.AVIPrint()
 
-	//list, err := avi.ListReader()
-	//if err != nil {
-	//	t.Errorf(" %#v %s", data, err)
-	//}
-
-	//list.ListPrint("")
-
-	//fmt.Printf("%#v\n", list)
-	//data = make([]byte, 32)
-	//if _, err = file.Read(data); err != nil {
-	//	t.Errorf(" %#v %s", data, err)
-	//}
-	//fmt.Println(data)
 }
 
 /*
