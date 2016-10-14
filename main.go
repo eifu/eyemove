@@ -24,15 +24,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	a := Concurrent(names[:13])
+	processed := Concurrent(names[:20])
 
-	log.Println(a)
+	json_data, _ := json.MarshalIndent(processed, "", "    ")
 
-	json_data, _ := json.Marshal(a)
-
-	log.Println(string(json_data))
-
-	f, err := os.Create("hi.json")
+	f, err := os.Create("data.json")
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +54,6 @@ func Concurrent(names []string) []*manaco.EyeImage {
 		f := final[i*size/4 : (i+1)*size/4]
 		go oneQuarter(wg, &n, &f)
 	}
-
 	wg.Wait()
 
 	return final
@@ -67,9 +62,13 @@ func Concurrent(names []string) []*manaco.EyeImage {
 func oneQuarter(wg *sync.WaitGroup, names *[]string, result *[]*manaco.EyeImage) {
 	wg2 := new(sync.WaitGroup)
 	wg2.Add(len(*names))
+	var err error
 
 	for i, e := range *names {
-		(*result)[i], _ = oneFlame(e)
+		(*result)[i], err = oneFlame(e)
+		if err != nil {
+			panic(err)
+		}
 		wg2.Done()
 	}
 	wg2.Wait()
@@ -105,22 +104,5 @@ func oneFlame(filename string) (*manaco.EyeImage, error) {
 
 	eye_image.Hough(w)
 
-	// for i := 0; i < len(eye_image.MyRadius); i++ {
-	// 	eye_image.DrawCircle(i)
-	// }
-
-	// rel, err := filepath.Rel("data/images", path)
-
-	// outfile, err := os.Create("result/" + "test__" + rel)
-	// defer outfile.Close()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if err := png.Encode(outfile, eye_image.MyRGBA); err != nil {
-	// 	log.Printf("main write file :%v\n", err)
-	// 	return err
-	// }
 	return eye_image, nil
-
 }
