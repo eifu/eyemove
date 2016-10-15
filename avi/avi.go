@@ -263,17 +263,6 @@ func (avi *AVI) ListReader() (*List, error) {
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-
-		fmt.Println("2 db")
-		// 00db chunk
-		if err := avi.ChunkReader(&l); err != nil {
-			return nil, err
-		}
-
-		fmt.Println("3 db")
-		if err := avi.ChunkReader(&l); err != nil {
-			return nil, err
-		}
 	}
 
 	return &l, nil
