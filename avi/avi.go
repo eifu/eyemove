@@ -5,7 +5,11 @@ package avi
 import (
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
+	"os"
 )
 
 var (
@@ -445,6 +449,17 @@ func (avi *AVI) DBReader(size uint32) (map[string]uint32, error) {
 		return nil, err
 	}
 	fmt.Println("check2")
+
+	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+
+	for y := 0; y < 114; y++ {
+		for x := 0; x < 172; x++ {
+			myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
+		}
+	}
+
+	myfile, _ := os.Create("test1.png")
+	png.Encode(myfile, myimage)
 
 	m := make(map[string]uint32)
 
