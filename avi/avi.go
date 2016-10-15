@@ -44,8 +44,9 @@ var (
 // FourCC is a four character code.
 type FOURCC [4]byte
 
-// 'RIFF' fileSize fileType data
-// fileSize includes size of fileType(FOURCC), data(io.Reader)
+// 'RIFF' fileSize 'AVI ' data
+// fileSize includes size of 'AVI '(FOURCC), data(io.Reader)
+// actual size is fileSize + 8
 type AVI struct {
 	fileSize uint32
 	lists    []*List
@@ -55,6 +56,7 @@ type AVI struct {
 
 // 'LIST' listSize listType listData
 // listSize includes size of listType(FOURCC), listdata(io.Reader)
+// actual size is fileSize + 8
 type List struct {
 	listSize uint32
 	listType FOURCC
@@ -64,7 +66,8 @@ type List struct {
 }
 
 // ckID ckSize ckData
-// ckSize includes size of ckData, but not include size of padding, ckID, ckSize
+// ckSize includes size of ckData.
+// actual size is ckSize + 8
 // The data is always padded to nearest WORD boundary.
 type Chunk struct {
 	ckID   FOURCC
@@ -255,12 +258,19 @@ func (avi *AVI) ListReader() (*List, error) {
 			return nil, err
 		}
 	case fccmovi:
+		fmt.Println("1 db")
 		// 00db chunk
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
+		fmt.Println("2 db")
 		// 00db chunk
+		if err := avi.ChunkReader(&l); err != nil {
+			return nil, err
+		}
+
+		fmt.Println("3 db")
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
@@ -438,13 +448,16 @@ func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) 
 }
 
 func (avi *AVI) DBReader(size uint32) (map[string]uint32, error) {
-
+	fmt.Println("check1")
 	buf := make([]byte, size)
-	if _, err := io.ReadFull(avi.r, buf); err != nil {
+	if n, err := io.ReadFull(avi.r, buf); err != nil {
+		fmt.Println(err)
+		fmt.Println(n, " out of  ", size)
 		return nil, err
 	}
+	fmt.Println("check2")
 
 	m := make(map[string]uint32)
-	return m, nil
 
+	return m, nil
 }
