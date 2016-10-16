@@ -66,7 +66,6 @@ type List struct {
 	listType FOURCC
 	lists    []*List
 	chunks   []*Chunk
-	images   []byte
 	junkSize uint32 // JUNK is only in
 }
 
@@ -75,9 +74,10 @@ type List struct {
 // actual size is ckSize + 8
 // The data is always padded to nearest WORD boundary.
 type Chunk struct {
-	ckID   FOURCC
-	ckSize uint32
-	ckData map[string]uint32
+	ckID    FOURCC
+	ckSize  uint32
+	ckData  map[string]uint32
+	ckImage []byte
 }
 
 type SuperIndex struct {
@@ -298,7 +298,7 @@ func (avi *AVI) ChunkReader(l *List) error {
 	case fccdmlh:
 		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
 	case fccdb:
-		ck.ckData, err = avi.DBReader(ck.ckSize)
+		ck.ckImage, err = avi.DBReader(ck.ckSize)
 	}
 
 	l.chunks = append(l.chunks, &ck) // add chunk object ck to l.chunks
@@ -441,7 +441,7 @@ func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) 
 	return m, nil
 }
 
-func (avi *AVI) DBReader(size uint32) (map[string]uint32, error) {
+func (avi *AVI) DBReader(size uint32) ([]byte, error) {
 	fmt.Println("check1")
 	buf := make([]byte, size)
 	if n, err := io.ReadFull(avi.r, buf); err != nil {
@@ -462,7 +462,5 @@ func (avi *AVI) DBReader(size uint32) (map[string]uint32, error) {
 	myfile, _ := os.Create("test1.png")
 	png.Encode(myfile, myimage)
 
-	m := make(map[string]uint32)
-
-	return m, nil
+	return buf, nil
 }
