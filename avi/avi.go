@@ -68,6 +68,7 @@ type List struct {
 	lists    []*List
 	chunks   []*Chunk
 	junkSize uint32 // JUNK is only in
+	imageNum int
 }
 
 // ckID ckSize ckData
@@ -75,10 +76,11 @@ type List struct {
 // actual size is ckSize + 8
 // The data is always padded to nearest WORD boundary.
 type Chunk struct {
-	ckID    FOURCC
-	ckSize  uint32
-	ckData  map[string]uint32
-	ckImage []byte
+	ckID      FOURCC
+	ckSize    uint32
+	ckData    map[string]uint32
+	ckImage   []byte
+	ckImageID int
 }
 
 type SuperIndex struct {
@@ -159,17 +161,18 @@ func (c *Chunk) ChunkPrint(indent string) {
 		}
 	}
 
-	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+	if c.ckImageID != 0 {
+		myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
 
-	for y := 0; y < 114; y++ {
-		for x := 0; x < 172; x++ {
-			myimage.Set(x, y, color.Gray{uint8(c.ckImage[x+y*172])})
+		for y := 0; y < 114; y++ {
+			for x := 0; x < 172; x++ {
+				myimage.Set(x, y, color.Gray{uint8(c.ckImage[x+y*172])})
+			}
 		}
+
+		myfile, _ := os.Create("test" + strconv.Itoa(c.ckImageID) + ".png")
+		png.Encode(myfile, myimage)
 	}
-
-	myfile, _ := os.Create("test" + strconv(i) + ".png")
-	png.Encode(myfile, myimage)
-
 }
 
 func (opt *Opt) OptPrint(indent string) {
@@ -327,9 +330,12 @@ func (avi *AVI) ChunkReader(l *List) error {
 		}
 	case fccdb:
 		ck.ckImage, err = avi.DBReader(ck.ckSize)
+		l.imageNum += 1
+		ck.ckImageID = l.imageNum
 		if err != nil {
 			return err
 		}
+
 	}
 
 	l.chunks = append(l.chunks, &ck) // add chunk object ck to l.chunks
@@ -473,25 +479,13 @@ func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) 
 }
 
 func (avi *AVI) DBReader(size uint32) ([]byte, error) {
-	fmt.Println("check1")
+
 	buf := make([]byte, size)
 	if n, err := io.ReadFull(avi.r, buf); err != nil {
 		fmt.Println(err)
 		fmt.Println(n, " out of  ", size)
 		return nil, err
 	}
-	fmt.Println("check2")
-	/*
-		myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
 
-		for y := 0; y < 114; y++ {
-			for x := 0; x < 172; x++ {
-				myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
-			}
-		}
-
-		myfile, _ := os.Create("test1.png")
-		png.Encode(myfile, myimage)
-	*/
 	return buf, nil
 }
