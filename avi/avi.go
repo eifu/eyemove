@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"strconv"
 )
 
 var (
@@ -157,6 +158,18 @@ func (c *Chunk) ChunkPrint(indent string) {
 			fmt.Printf("%s\t%s: %d\n", indent, k, v)
 		}
 	}
+
+	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+
+	for y := 0; y < 114; y++ {
+		for x := 0; x < 172; x++ {
+			myimage.Set(x, y, color.Gray{uint8(c.ckImage[x+y*172])})
+		}
+	}
+
+	myfile, _ := os.Create("test" + strconv(i) + ".png")
+	png.Encode(myfile, myimage)
+
 }
 
 func (opt *Opt) OptPrint(indent string) {
@@ -289,16 +302,34 @@ func (avi *AVI) ChunkReader(l *List) error {
 	switch ck.ckID {
 	case fccavih:
 		ck.ckData, err = avi.AVIHeaderReader(ck.ckSize)
+		if err != nil {
+			return err
+		}
 	case fccstrh:
 		ck.ckData, err = avi.StreamHeaderReader(ck.ckSize)
+		if err != nil {
+			return err
+		}
 	case fccstrf:
 		ck.ckData, err = avi.StreamFormatReader(ck.ckSize)
+		if err != nil {
+			return err
+		}
 	case fccindx:
 		ck.ckData, err = avi.MetaIndexReader(ck.ckSize)
+		if err != nil {
+			return err
+		}
 	case fccdmlh:
 		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
+		if err != nil {
+			return err
+		}
 	case fccdb:
 		ck.ckImage, err = avi.DBReader(ck.ckSize)
+		if err != nil {
+			return err
+		}
 	}
 
 	l.chunks = append(l.chunks, &ck) // add chunk object ck to l.chunks
@@ -450,17 +481,17 @@ func (avi *AVI) DBReader(size uint32) ([]byte, error) {
 		return nil, err
 	}
 	fmt.Println("check2")
+	/*
+		myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
 
-	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
-
-	for y := 0; y < 114; y++ {
-		for x := 0; x < 172; x++ {
-			myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
+		for y := 0; y < 114; y++ {
+			for x := 0; x < 172; x++ {
+				myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
+			}
 		}
-	}
 
-	myfile, _ := os.Create("test1.png")
-	png.Encode(myfile, myimage)
-
+		myfile, _ := os.Create("test1.png")
+		png.Encode(myfile, myimage)
+	*/
 	return buf, nil
 }
