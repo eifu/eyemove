@@ -66,6 +66,7 @@ type List struct {
 	listType FOURCC
 	lists    []*List
 	chunks   []*Chunk
+	images   []byte
 	junkSize uint32 // JUNK is only in
 }
 
