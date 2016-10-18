@@ -281,21 +281,12 @@ func (avi *AVI) ListReader() (*List, error) {
 	case fccmovi:
 		fmt.Println("1 db")
 		// 00db chunk
-		if err := avi.ChunkReader(&l); err != nil {
-			return nil, err
+		for i := 0; i < 12; i++ {
+			if err := avi.ChunkReader(&l); err != nil {
+				return nil, err
+			}
 		}
-		// 00db chunk
-		if err := avi.ChunkReader(&l); err != nil {
-			return nil, err
-		}
-		// 00db chunk
-		if err := avi.ChunkReader(&l); err != nil {
-			return nil, err
-		}
-		// 00db chunk
-		if err := avi.ChunkReader(&l); err != nil {
-			return nil, err
-		}
+
 	}
 
 	return &l, nil
@@ -317,37 +308,26 @@ func (avi *AVI) ChunkReader(l *List) error {
 	switch ck.ckID {
 	case fccavih:
 		ck.ckData, err = avi.AVIHeaderReader(ck.ckSize)
-		if err != nil {
-			return err
-		}
+
 	case fccstrh:
 		ck.ckData, err = avi.StreamHeaderReader(ck.ckSize)
-		if err != nil {
-			return err
-		}
+
 	case fccstrf:
 		ck.ckData, err = avi.StreamFormatReader(ck.ckSize)
-		if err != nil {
-			return err
-		}
+
 	case fccindx:
 		ck.ckData, err = avi.MetaIndexReader(ck.ckSize)
-		if err != nil {
-			return err
-		}
+
 	case fccdmlh:
 		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
-		if err != nil {
-			return err
-		}
+
 	case fccdb:
 		ck.ckImage, err = avi.DBReader(ck.ckSize)
 		l.imageNum += 1
 		ck.ckImageID = l.imageNum
-		if err != nil {
-			return err
-		}
-
+	}
+	if err != nil {
+		return err
 	}
 
 	l.chunks = append(l.chunks, &ck) // add chunk object ck to l.chunks
