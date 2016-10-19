@@ -213,15 +213,6 @@ func HeadReader(r io.Reader) (*AVI, error) {
 	}
 	avi.lists = append(avi.lists, list)
 
-	// movi
-	/*
-		list, err = avi.ListReader()
-		if err != nil {
-			return nil, err
-		}
-		avi.lists = append(avi.lists, list)
-	*/
-
 	return avi, nil
 }
 
@@ -280,19 +271,60 @@ func (avi *AVI) ListReader() (*List, error) {
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-		/*
-			case fccmovi:
-				fmt.Println("1 db")
-				// 00db chunk
-				for i := 0; i < 12; i++ {
-					if err := avi.ChunkReader(&l); err != nil {
-						return nil, err
-					}
-				}
-		*/
+
 	}
 
 	return &l, nil
+}
+
+func (avi *AVI) MOVIReader() {
+
+	var buf = make([]byte, 12)
+
+	if _, err := io.ReadFull(avi.r, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		fmt.Println("1")
+		return
+	}
+
+	// Make sure that first 4 letters are "LIST"
+	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccLIST) {
+		return
+	}
+
+	// Make sure that third 4 letters are "movi"
+	if !equal(FOURCC{buf[8], buf[9], buf[10], buf[11]}, fccmovi) {
+		return
+	}
+
+	var listSize uint32 = decodeU32(buf[4:8])
+	fmt.Println(listSize)
+
+}
+
+func (avi *AVI) FrameReader(size uint32) ([]byte, error) {
+	buf := make([]byte, 8)
+	ck := Chunk{}
+	var err error
+
+	if _, err = io.ReadFull(avi.r, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		return nil, err
+	}
+
+	copy(ck.ckID[:], buf[:4])
+	buf = make([]byte, size)
+	if n, err := io.ReadFull(avi.r, buf); err != nil {
+		fmt.Println(err)
+		fmt.Println(n, " out of  ", size)
+		return nil, err
+	}
+
+	return buf, nil
 }
 
 func (avi *AVI) ChunkReader(l *List) error {
@@ -323,11 +355,6 @@ func (avi *AVI) ChunkReader(l *List) error {
 
 	case fccdmlh:
 		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
-
-	case fccdb:
-		ck.ckImage, err = avi.DBReader(ck.ckSize)
-		l.imageNum += 1
-		ck.ckImageID = l.imageNum
 	}
 	if err != nil {
 		return err
@@ -473,16 +500,4 @@ func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) 
 	m := make(map[string]uint32)
 	m["dwTotalFrames"] = decodeU32(buf[:4])
 	return m, nil
-}
-
-func (avi *AVI) DBReader(size uint32) ([]byte, error) {
-
-	buf := make([]byte, size)
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		fmt.Println(err)
-		fmt.Println(n, " out of  ", size)
-		return nil, err
-	}
-
-	return buf, nil
 }
