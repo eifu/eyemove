@@ -206,19 +206,21 @@ func HeadReader(r io.Reader) (*AVI, error) {
 
 	avi := &AVI{fileSize: decodeU32(buf[4:8]), r: r}
 
+	// hdrl
 	list, err := avi.ListReader()
 	if err != nil {
 		return nil, err
 	}
-
 	avi.lists = append(avi.lists, list)
 
-	list, err = avi.ListReader()
-	if err != nil {
-		return nil, err
-	}
-
-	avi.lists = append(avi.lists, list)
+	// movi
+	/*
+		list, err = avi.ListReader()
+		if err != nil {
+			return nil, err
+		}
+		avi.lists = append(avi.lists, list)
+	*/
 
 	return avi, nil
 }
@@ -278,15 +280,16 @@ func (avi *AVI) ListReader() (*List, error) {
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-	case fccmovi:
-		fmt.Println("1 db")
-		// 00db chunk
-		for i := 0; i < 12; i++ {
-			if err := avi.ChunkReader(&l); err != nil {
-				return nil, err
-			}
-		}
-
+		/*
+			case fccmovi:
+				fmt.Println("1 db")
+				// 00db chunk
+				for i := 0; i < 12; i++ {
+					if err := avi.ChunkReader(&l); err != nil {
+						return nil, err
+					}
+				}
+		*/
 	}
 
 	return &l, nil
@@ -345,7 +348,9 @@ func (avi *AVI) JUNKReader(l *List) error {
 	l.junkSize = decodeU32(buf[4:8])
 
 	buf = make([]byte, l.junkSize)
-	if _, err := io.ReadFull(avi.r, buf); err != nil {
+
+	if n, err := io.ReadFull(avi.r, buf); err != nil {
+		fmt.Println(n, " out of  ", l.junkSize)
 		return err
 	}
 
