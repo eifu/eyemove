@@ -1,6 +1,7 @@
 package avi
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -16,7 +17,7 @@ func TestRealAVIFile(t *testing.T) {
 	if err != nil {
 		t.Errorf(" %#v\n", err)
 	}
-
-	avi.MOVIReader()
+	fmt.Printf("%#v \n", avi)
+	//	avi.MOVIReader()
 	avi.AVIPrint()
 }
