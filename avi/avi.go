@@ -3,6 +3,7 @@
 package avi
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image"
@@ -184,7 +185,14 @@ func (opt *Opt) OptPrint(indent string) {
 
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
-func HeadReader(r io.Reader) (*AVI, error) {
+func HeadReader(f *os.File) (*AVI, error) {
+
+	data := make([]byte, 12+12+65792+12)
+	if _, err := f.Read(data); err != nil {
+		return nil, err
+	}
+	r := bytes.NewReader(data)
+
 	buf := make([]byte, 12)
 
 	// Make sure that io.Reader has enough stuff to read.

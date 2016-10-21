@@ -1,8 +1,6 @@
 package avi
 
 import (
-	"bytes"
-
 	"os"
 	"testing"
 )
@@ -13,16 +11,10 @@ func TestRealAVIFile(t *testing.T) {
 		t.Error(err)
 	}
 
-	data := make([]byte, 12+12+65792+12)
-
-	if _, err = file.Read(data); err != nil {
-		t.Error(err)
-	}
-
-	avi, err := HeadReader(bytes.NewReader(data))
+	avi, err := HeadReader(file)
 
 	if err != nil {
-		t.Errorf(" %#v %s", data, err)
+		t.Errorf(" %#v\n", err)
 	}
 
 	avi.MOVIReader()
