@@ -184,26 +184,35 @@ func (opt *Opt) OptPrint(indent string) {
 	}
 }
 
+func readData(avi *AVI, size uint32) ([]byte, error) {
+	data := make([]byte, size)
+	if _, err := avi.file.Read(data); err != nil {
+		return nil, err
+	}
+	avi.r = bytes.NewReader(data)
+
+	buf := make([]byte, size)
+	if n, err := io.ReadFull(avi.r, buf); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			err = errShortListHeader
+		}
+		fmt.Println(n, " out of  ", size)
+		return nil, err
+	}
+	return buf, nil
+}
+
 // NewReader returns the RIFF stream's form type, such as "AVI " or "WAVE", and
 // its chunks as a *Reader.
 func HeadReader(f *os.File) (*AVI, error) {
 
-	//	data := make([]byte, 12+12+65792+12)
-	data := make([]byte, 12)
-	if _, err := f.Read(data); err != nil {
+	avi := &AVI{file: f}
+	//	avi.r = bytes.NewReader(12)
+	buf, err := readData(avi, 12)
+	if err != nil {
 		return nil, err
 	}
-	r := bytes.NewReader(data)
 
-	buf := make([]byte, 12)
-
-	// Make sure that io.Reader has enough stuff to read.
-	if _, err := io.ReadFull(r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errMissingKeywordHeader
-		}
-		return nil, err
-	}
 	// Make sure the first FOURCC lieral is 'RIFF'
 	if !equal([4]byte{buf[0], buf[1], buf[2], buf[3]}, fccRIFF) {
 		return nil, errMissingRIFFChunkHeader
@@ -214,7 +223,7 @@ func HeadReader(f *os.File) (*AVI, error) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	avi := &AVI{file: f, fileSize: decodeU32(buf[4:8]), r: r}
+	avi.fileSize = decodeU32(buf[4:8])
 
 	// hdrl
 	list, err := avi.ListReader()
@@ -229,18 +238,9 @@ func HeadReader(f *os.File) (*AVI, error) {
 // ListReader returns List type
 func (avi *AVI) ListReader() (*List, error) {
 	var l List
-	var buf = make([]byte, 12)
 
-	data := make([]byte, 12)
-	if _, err := avi.file.Read(data); err != nil {
-		return nil, err
-	}
-	avi.r = bytes.NewReader(data)
-
-	if _, err := io.ReadFull(avi.r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
+	buf, err := readData(avi, 12)
+	if err != nil {
 		return nil, err
 	}
 
@@ -331,14 +331,11 @@ func (avi *AVI) MOVIReader() {
 }
 
 func (avi *AVI) FrameReader(size uint32) ([]byte, error) {
-	buf := make([]byte, 8)
-	ck := Chunk{}
-	var err error
 
-	if _, err = io.ReadFull(avi.r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
+	ck := Chunk{}
+
+	buf, err := readData(avi, 8)
+	if err != nil {
 		return nil, err
 	}
 
@@ -355,22 +352,12 @@ func (avi *AVI) FrameReader(size uint32) ([]byte, error) {
 
 func (avi *AVI) ChunkReader(l *List) error {
 
-	data := make([]byte, 8)
-	if _, err := avi.file.Read(data); err != nil {
+	buf, err := readData(avi, 8)
+	if err != nil {
 		return err
 	}
-	avi.r = bytes.NewReader(data)
 
-	buf := make([]byte, 8)
 	ck := Chunk{}
-	var err error
-
-	if _, err = io.ReadFull(avi.r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		return err
-	}
 
 	copy(ck.ckID[:], buf[:4])
 	ck.ckSize = decodeU32(buf[4:])
@@ -399,57 +386,28 @@ func (avi *AVI) ChunkReader(l *List) error {
 }
 func (avi *AVI) JUNKReader(l *List) error {
 
-	data := make([]byte, 8)
-	if _, err := avi.file.Read(data); err != nil {
+	buf, err := readData(avi, 8)
+	if err != nil {
 		return err
 	}
-	avi.r = bytes.NewReader(data)
 
-	buf := make([]byte, 8)
-
-	if _, err := io.ReadFull(avi.r, buf); err != nil {
-		return err
-	}
 	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccJUNK) {
 		return errMissingKeywordHeader
 	}
 	l.junkSize = decodeU32(buf[4:8])
 
-	buf = make([]byte, l.junkSize)
-
-	fmt.Println(l.junkSize)
-
-	data = make([]byte, l.junkSize)
-	if _, err := avi.file.Read(data); err != nil {
-		return err
-	}
-	avi.r = bytes.NewReader(data)
-
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		fmt.Println(n, " out of  ", l.junkSize)
-		return err
-	}
+	buf, err = readData(avi, l.junkSize)
 
 	return nil
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, size)
-	if _, err := avi.file.Read(data); err != nil {
+	buf, err := readData(avi, size)
+	if err != nil {
 		return nil, err
 	}
-	avi.r = bytes.NewReader(data)
 
-	buf := make([]byte, size)
-
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		fmt.Println(n, " out of  ", size)
-		return nil, err
-	}
 	m := make(map[string]uint32)
 
 	m["dwMicroSecPerFrame"] = decodeU32(buf[:4])
@@ -468,20 +426,11 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, size)
-	if _, err := avi.file.Read(data); err != nil {
+	buf, err := readData(avi, size)
+	if err != nil {
 		return nil, err
 	}
-	avi.r = bytes.NewReader(data)
 
-	buf := make([]byte, size)
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
-		fmt.Println(n, " out of  ", size)
-		return nil, err
-	}
 	m := make(map[string]uint32)
 	m["fccType"] = decodeU32(buf[:4])
 	m["fccHandler"] = decodeU32(buf[4:8])
@@ -506,15 +455,8 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, size)
-	if _, err := avi.file.Read(data); err != nil {
-		return nil, err
-	}
-	avi.r = bytes.NewReader(data)
-
-	buf := make([]byte, size)
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		fmt.Println(n, " out of  ", size)
+	buf, err := readData(avi, size)
+	if err != nil {
 		return nil, err
 	}
 
@@ -536,17 +478,11 @@ func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, size)
-	if _, err := avi.file.Read(data); err != nil {
+	buf, err := readData(avi, size)
+	if err != nil {
 		return nil, err
 	}
-	avi.r = bytes.NewReader(data)
 
-	buf := make([]byte, size)
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		fmt.Println(n, " out of  ", size)
-		return nil, err
-	}
 	//fmt.Printf("buf size: %d,  content:%#v", len(buf), buf)
 	m := make(map[string]uint32)
 	m["wLongsPerEntry"] = decodeU32(buf[:2])
@@ -573,15 +509,8 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 }
 
 func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) {
-	data := make([]byte, size)
-	if _, err := avi.file.Read(data); err != nil {
-		return nil, err
-	}
-	avi.r = bytes.NewReader(data)
-
-	buf := make([]byte, size)
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		fmt.Println(n, " out of  ", size)
+	buf, err := readData(avi, size)
+	if err != nil {
 		return nil, err
 	}
 
