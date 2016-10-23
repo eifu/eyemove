@@ -207,7 +207,6 @@ func readData(avi *AVI, size uint32) ([]byte, error) {
 func HeadReader(f *os.File) (*AVI, error) {
 
 	avi := &AVI{file: f}
-	//	avi.r = bytes.NewReader(12)
 	buf, err := readData(avi, 12)
 	if err != nil {
 		return nil, err
@@ -231,6 +230,9 @@ func HeadReader(f *os.File) (*AVI, error) {
 		return nil, err
 	}
 	avi.lists = append(avi.lists, list)
+
+	// movi
+	avi.MOVIReader()
 
 	return avi, nil
 }
@@ -273,28 +275,29 @@ func (avi *AVI) ListReader() (*List, error) {
 		}
 		l.lists = append(l.lists, l3)
 
-		// JUNK ...
+		// JUNK ... 12 + 64496
 		if err := avi.JUNKReader(&l); err != nil {
 			return nil, err
 		}
 
 	case fccstrl:
-		// strh 8 + 1064
+		// strh 8 + 56
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
-		// strf 8 +
+		// strf 8 + 1064
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
-		// index
+		// indx 8 + 40
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
 	case fccodml:
+		// dmlr 8 + 4
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
@@ -305,16 +308,13 @@ func (avi *AVI) ListReader() (*List, error) {
 }
 
 func (avi *AVI) MOVIReader() {
-
-	var buf = make([]byte, 12)
-
-	if _, err := io.ReadFull(avi.r, buf); err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
-		}
+	fmt.Println("test")
+	buf, err := readData(avi, 12)
+	if err != nil {
 		return
 	}
 
+	fmt.Println("test2")
 	// Make sure that first 4 letters are "LIST"
 	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccLIST) {
 		return
@@ -409,7 +409,6 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 	}
 
 	m := make(map[string]uint32)
-
 	m["dwMicroSecPerFrame"] = decodeU32(buf[:4])
 	m["dwMaxBytesPerSec"] = decodeU32(buf[4:8])
 	m["dwPaddingGranularity"] = decodeU32(buf[8:12])
@@ -483,7 +482,6 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 		return nil, err
 	}
 
-	//fmt.Printf("buf size: %d,  content:%#v", len(buf), buf)
 	m := make(map[string]uint32)
 	m["wLongsPerEntry"] = decodeU32(buf[:2])
 	m["bIndexSubType"] = decodeU32(buf[2:3])
