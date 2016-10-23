@@ -19,6 +19,7 @@ var (
 	errMissingKeywordHeader   = errors.New("avi: missing keyword")
 	errMissingRIFFChunkHeader = errors.New("avi: missing RIFF chunk header")
 	errMissingAVIChunkHeader  = errors.New("avi: missing AVI chunk header")
+	errMissingLIST            = errors.New("avi: missing LIST keyword")
 	errListSubchunkTooLong    = errors.New("avi: list subchunk too long")
 	errShortData              = errors.New("avi: short data")
 	errStaleReader            = errors.New("avi: stale reader")
@@ -54,7 +55,6 @@ type AVI struct {
 	file     *os.File
 	fileSize uint32
 	lists    []*List
-	opts     []Opt
 	r        io.Reader
 }
 
@@ -75,9 +75,12 @@ type List struct {
 // actual size is ckSize + 8
 // The data is always padded to nearest WORD boundary.
 type Chunk struct {
-	ckID      FOURCC
-	ckSize    uint32
-	ckData    map[string]uint32
+	ckID   FOURCC
+	ckSize uint32
+	ckData map[string]uint32
+}
+
+type ImageChunk struct {
 	ckImage   []byte
 	ckImageID int
 }
@@ -103,7 +106,6 @@ func decodeU32(b []byte) uint32 {
 
 func decode(s string) FOURCC {
 	return FOURCC{s[0], s[1], s[2], s[3]}
-
 }
 
 func encodeU32(u uint32) *FOURCC {
@@ -125,9 +127,7 @@ func (avi *AVI) AVIPrint() {
 	for _, l := range avi.lists {
 		l.ListPrint("\t")
 	}
-	for _, o := range avi.opts {
-		o.OptPrint("\t")
-	}
+
 }
 
 func (l *List) ListPrint(indent string) {
@@ -155,18 +155,6 @@ func (c *Chunk) ChunkPrint(indent string) {
 		}
 	}
 
-	if c.ckImageID != 0 {
-		myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
-
-		for y := 0; y < 114; y++ {
-			for x := 0; x < 172; x++ {
-				myimage.Set(x, y, color.Gray{uint8(c.ckImage[x+y*172])})
-			}
-		}
-
-		myfile, _ := os.Create("test" + strconv.Itoa(c.ckImageID) + ".png")
-		png.Encode(myfile, myimage)
-	}
 }
 
 func readData(avi *AVI, size uint32) ([]byte, error) {
@@ -233,7 +221,7 @@ func (avi *AVI) ListReader() (*List, error) {
 
 	// Make sure that first 4th letters are "LIST"
 	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccLIST) {
-		return nil, errShortListHeader
+		return nil, errMissingLIST
 	}
 
 	l.listSize = decodeU32(buf[4:8])
@@ -331,6 +319,17 @@ func (avi *AVI) FrameReader(size uint32) ([]byte, error) {
 		fmt.Println(n, " out of  ", size)
 		return nil, err
 	}
+
+	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+
+	for y := 0; y < 114; y++ {
+		for x := 0; x < 172; x++ {
+			myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
+		}
+	}
+
+	myfile, _ := os.Create("test" + strconv.Itoa(1) + ".png")
+	png.Encode(myfile, myimage)
 
 	return buf, nil
 }
