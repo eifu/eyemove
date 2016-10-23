@@ -20,10 +20,7 @@ var (
 	errMissingRIFFChunkHeader = errors.New("avi: missing RIFF chunk header")
 	errMissingAVIChunkHeader  = errors.New("avi: missing AVI chunk header")
 	errListSubchunkTooLong    = errors.New("avi: list subchunk too long")
-	errShortChunkData         = errors.New("avi: short chunk data")
-	errShortChunkHeader       = errors.New("avi: short chunk header")
-	errShortListData          = errors.New("avi: short list data")
-	errShortListHeader        = errors.New("avi: short list header")
+	errShortData              = errors.New("avi: short data")
 	errStaleReader            = errors.New("avi: stale reader")
 
 	fccRIFF = FOURCC{'R', 'I', 'F', 'F'}       // RIFF is super class of avi file
@@ -182,7 +179,7 @@ func readData(avi *AVI, size uint32) ([]byte, error) {
 	buf := make([]byte, size)
 	if n, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortChunkData
+			err = errShortData
 		}
 		fmt.Println(n, " out of  ", size)
 		return nil, err
