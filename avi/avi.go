@@ -312,7 +312,6 @@ func (avi *AVI) MOVIReader() {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			err = errShortListHeader
 		}
-		fmt.Println("1")
 		return
 	}
 
@@ -436,7 +435,7 @@ func (avi *AVI) JUNKReader(l *List) error {
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, 56)
+	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
 		return nil, err
 	}
@@ -469,7 +468,7 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, 56)
+	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
 		return nil, err
 	}
@@ -507,7 +506,7 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, 1064)
+	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
 		return nil, err
 	}
@@ -537,7 +536,7 @@ func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 
-	data := make([]byte, 40)
+	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
 		return nil, err
 	}
@@ -574,7 +573,7 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 }
 
 func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) {
-	data := make([]byte, 4)
+	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
 		return nil, err
 	}
