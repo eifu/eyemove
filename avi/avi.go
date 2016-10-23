@@ -91,11 +91,6 @@ type SuperIndex struct {
 	dwDuration uint32
 }
 
-// Optional elements are placed in brackets: [ optional element ]
-type Opt struct {
-	elems []uint32
-}
-
 // u32 decodes the first four bytes of b as a little-endian integer.
 func decodeU32(b []byte) uint32 {
 	switch len(b) {
@@ -177,13 +172,6 @@ func (c *Chunk) ChunkPrint(indent string) {
 	}
 }
 
-func (opt *Opt) OptPrint(indent string) {
-	fmt.Printf("%sOpt", indent)
-	for _, elem := range opt.elems {
-		fmt.Printf("%s\t%d ", indent, elem)
-	}
-}
-
 func readData(avi *AVI, size uint32) ([]byte, error) {
 	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
@@ -194,7 +182,7 @@ func readData(avi *AVI, size uint32) ([]byte, error) {
 	buf := make([]byte, size)
 	if n, err := io.ReadFull(avi.r, buf); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err = errShortListHeader
+			err = errShortChunkData
 		}
 		fmt.Println(n, " out of  ", size)
 		return nil, err
