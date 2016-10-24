@@ -1,7 +1,8 @@
 package main
 
 import (
-	"./manaco"
+	"github.com/eifu/eyemove/manaco"
+
 	"encoding/json"
 	"flag"
 	"image"

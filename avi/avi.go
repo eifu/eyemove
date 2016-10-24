@@ -62,12 +62,13 @@ type AVI struct {
 // listSize includes size of listType(FOURCC), listdata(io.Reader)
 // actual size is fileSize + 8
 type List struct {
-	listSize uint32
-	listType FOURCC
-	lists    []*List
-	chunks   []*Chunk
-	junkSize uint32 // JUNK is only in
-	imageNum int
+	listSize    uint32
+	listType    FOURCC
+	lists       []*List
+	chunks      []*Chunk
+	imagechunks []*ImageChunk
+	junkSize    uint32 // JUNK is only in
+	imageNum    int
 }
 
 // ckID ckSize ckData
@@ -81,6 +82,8 @@ type Chunk struct {
 }
 
 type ImageChunk struct {
+	ckID      FOURCC
+	ckSize    uint32
 	ckImage   []byte
 	ckImageID int
 }
@@ -143,6 +146,10 @@ func (l *List) ListPrint(indent string) {
 	if l.junkSize != 0 {
 		fmt.Printf("\t%sJUNK (%d)\n", indent, l.junkSize)
 	}
+
+	for _, e := range l.imagechunks {
+		e.ImageChunkPrint(indent + "\t")
+	}
 }
 
 func (c *Chunk) ChunkPrint(indent string) {
@@ -154,7 +161,10 @@ func (c *Chunk) ChunkPrint(indent string) {
 			fmt.Printf("%s\t%s: %d\n", indent, k, v)
 		}
 	}
+}
 
+func (ick *ImageChunk) ImageChunkPrint(indent string) {
+	fmt.Printf("%s%s ID: %d", indent, ick.ckID, ick.ckImageID)
 }
 
 func readData(avi *AVI, size uint32) ([]byte, error) {
@@ -281,13 +291,13 @@ func (avi *AVI) ListReader() (*List, error) {
 }
 
 func (avi *AVI) MOVIReader() {
-	fmt.Println("test")
+	var l List
+
 	buf, err := readData(avi, 12)
 	if err != nil {
 		return
 	}
 
-	fmt.Println("test2")
 	// Make sure that first 4 letters are "LIST"
 	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccLIST) {
 		return
@@ -298,29 +308,36 @@ func (avi *AVI) MOVIReader() {
 		return
 	}
 
-	var listSize uint32 = decodeU32(buf[4:8])
-	fmt.Println(listSize)
+	l.listType = fccmovi
+	l.listSize = decodeU32(buf[4:8])
 
+	for i := 0; i < 20; i++ {
+		avi.ImageChunkReader(&l)
+	}
+
+	avi.lists = append(avi.lists, &l)
 }
 
-func (avi *AVI) FrameReader(size uint32) ([]byte, error) {
+func (avi *AVI) ImageChunkReader(l *List) error {
 
-	ck := Chunk{}
+	ick := ImageChunk{}
+
+	l.imageNum += 1
+	ick.ckImageID = l.imageNum
 
 	buf, err := readData(avi, 8)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	copy(ck.ckID[:], buf[:4])
-	buf = make([]byte, size)
-	if n, err := io.ReadFull(avi.r, buf); err != nil {
-		fmt.Println(err)
-		fmt.Println(n, " out of  ", size)
-		return nil, err
+	ick.ckID = FOURCC{buf[0], buf[1], buf[2], buf[3]}
+
+	buf, err = readData(avi, decodeU32(buf[4:8]))
+	if err != nil {
+		return err
 	}
 
-	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114)) // this width height is hard cording
 
 	for y := 0; y < 114; y++ {
 		for x := 0; x < 172; x++ {
@@ -328,10 +345,12 @@ func (avi *AVI) FrameReader(size uint32) ([]byte, error) {
 		}
 	}
 
-	myfile, _ := os.Create("test" + strconv.Itoa(1) + ".png")
+	myfile, _ := os.Create("test" + strconv.Itoa(ick.ckImageID) + ".png")
 	png.Encode(myfile, myimage)
 
-	return buf, nil
+	l.imagechunks = append(l.imagechunks, &ick)
+
+	return nil
 }
 
 func (avi *AVI) ChunkReader(l *List) error {
