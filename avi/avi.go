@@ -125,6 +125,10 @@ func equal(a, b FOURCC) bool {
 	return true
 }
 
+func (avi *AVI) GetLists() []*List {
+	return avi.lists
+}
+
 func (avi *AVI) AVIPrint() {
 	fmt.Printf("AVI (%d)\n", avi.fileSize)
 	for _, l := range avi.lists {
@@ -164,7 +168,7 @@ func (c *Chunk) ChunkPrint(indent string) {
 }
 
 func (ick *ImageChunk) ImageChunkPrint(indent string) {
-	fmt.Printf("%s%s ID: %d", indent, ick.ckID, ick.ckImageID)
+	fmt.Printf("%s%s ID: %d\n", indent, ick.ckID, ick.ckImageID)
 }
 
 func readData(avi *AVI, size uint32) ([]byte, error) {
@@ -215,7 +219,7 @@ func HeadReader(f *os.File) (*AVI, error) {
 	avi.lists = append(avi.lists, list)
 
 	// movi
-	avi.MOVIReader()
+	//	avi.MOVIReader()
 
 	return avi, nil
 }
@@ -290,7 +294,7 @@ func (avi *AVI) ListReader() (*List, error) {
 	return &l, nil
 }
 
-func (avi *AVI) MOVIReader() {
+func (avi *AVI) MOVIReader(num int) {
 	var l List
 
 	buf, err := readData(avi, 12)
@@ -311,7 +315,7 @@ func (avi *AVI) MOVIReader() {
 	l.listType = fccmovi
 	l.listSize = decodeU32(buf[4:8])
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < num; i++ {
 		avi.ImageChunkReader(&l)
 	}
 
@@ -337,7 +341,10 @@ func (avi *AVI) ImageChunkReader(l *List) error {
 		return err
 	}
 
-	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114)) // this width height is hard cording
+	ick.ckImage = buf
+
+	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+	// this width height is hard cording
 
 	for y := 0; y < 114; y++ {
 		for x := 0; x < 172; x++ {
@@ -345,7 +352,7 @@ func (avi *AVI) ImageChunkReader(l *List) error {
 		}
 	}
 
-	myfile, _ := os.Create("test" + strconv.Itoa(ick.ckImageID) + ".png")
+	myfile, _ := os.Create("result/test" + strconv.Itoa(ick.ckImageID) + ".png")
 	png.Encode(myfile, myimage)
 
 	l.imagechunks = append(l.imagechunks, &ick)
