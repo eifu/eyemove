@@ -6,12 +6,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"image"
-	"image/color"
-	"image/png"
 	"io"
 	"os"
-	"strconv"
 )
 
 var (
@@ -52,22 +48,23 @@ type FOURCC [4]byte
 // fileSize includes size of 'AVI '(FOURCC), data(io.Reader)
 // actual size is fileSize + 8
 type AVI struct {
-	file     *os.File
-	fileSize uint32
-	lists    []*List
-	r        io.Reader
+	file  *os.File
+	Size  uint32
+	lists []*List
+	r     io.Reader
 }
 
 // 'LIST' listSize listType listData
 // listSize includes size of listType(FOURCC), listdata(io.Reader)
 // actual size is fileSize + 8
 type List struct {
-	listSize    uint32
-	listType    FOURCC
+	Size     uint32
+	Type     FOURCC
+	JunkSize uint32 // JUNK is only in
+
 	lists       []*List
 	chunks      []*Chunk
 	imagechunks []*ImageChunk
-	junkSize    uint32 // JUNK is only in
 	imageNum    int
 }
 
@@ -76,16 +73,16 @@ type List struct {
 // actual size is ckSize + 8
 // The data is always padded to nearest WORD boundary.
 type Chunk struct {
-	ckID   FOURCC
-	ckSize uint32
-	ckData map[string]uint32
+	ID   FOURCC
+	Size uint32
+	Data map[string]uint32
 }
 
 type ImageChunk struct {
-	ckID      FOURCC
-	ckSize    uint32
-	ckImage   []byte
-	ckImageID int
+	ID      FOURCC
+	Size    uint32
+	Image   []byte
+	ImageID int
 }
 
 type SuperIndex struct {
@@ -125,12 +122,12 @@ func equal(a, b FOURCC) bool {
 	return true
 }
 
-func (avi *AVI) GetLists() []*List {
-	return avi.lists
+func (avi *AVI) GetMoviList() []*ImageChunk {
+	return avi.lists[1].imagechunks
 }
 
 func (avi *AVI) AVIPrint() {
-	fmt.Printf("AVI (%d)\n", avi.fileSize)
+	fmt.Printf("AVI (%d)\n", avi.Size)
 	for _, l := range avi.lists {
 		l.ListPrint("\t")
 	}
@@ -138,7 +135,7 @@ func (avi *AVI) AVIPrint() {
 }
 
 func (l *List) ListPrint(indent string) {
-	fmt.Printf("%sList (%d) %s\n", indent, l.listSize, l.listType.String())
+	fmt.Printf("%sList (%d) %s\n", indent, l.Size, l.Type.String())
 
 	for _, e := range l.chunks {
 		e.ChunkPrint(indent + "\t")
@@ -147,8 +144,8 @@ func (l *List) ListPrint(indent string) {
 	for _, e := range l.lists {
 		e.ListPrint(indent + "\t")
 	}
-	if l.junkSize != 0 {
-		fmt.Printf("\t%sJUNK (%d)\n", indent, l.junkSize)
+	if l.JunkSize != 0 {
+		fmt.Printf("\t%sJUNK (%d)\n", indent, l.JunkSize)
 	}
 
 	for _, e := range l.imagechunks {
@@ -157,8 +154,8 @@ func (l *List) ListPrint(indent string) {
 }
 
 func (c *Chunk) ChunkPrint(indent string) {
-	fmt.Printf("%s%s(%d)\n", indent, c.ckID, c.ckSize)
-	for k, v := range c.ckData {
+	fmt.Printf("%s%s(%d)\n", indent, c.ID, c.Size)
+	for k, v := range c.Data {
 		if k == "fccType" || k == "fccHandler" || k == "dwChunkId" {
 			fmt.Printf("%s\t%s: %s\n", indent, k, encodeU32(v))
 		} else {
@@ -168,7 +165,7 @@ func (c *Chunk) ChunkPrint(indent string) {
 }
 
 func (ick *ImageChunk) ImageChunkPrint(indent string) {
-	fmt.Printf("%s%s ID: %d\n", indent, ick.ckID, ick.ckImageID)
+	fmt.Printf("%s%s ID: %d\n", indent, ick.ID, ick.ImageID)
 }
 
 func readData(avi *AVI, size uint32) ([]byte, error) {
@@ -209,7 +206,7 @@ func HeadReader(f *os.File) (*AVI, error) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	avi.fileSize = decodeU32(buf[4:8])
+	avi.Size = decodeU32(buf[4:8])
 
 	// hdrl
 	list, err := avi.ListReader()
@@ -238,10 +235,10 @@ func (avi *AVI) ListReader() (*List, error) {
 		return nil, errMissingLIST
 	}
 
-	l.listSize = decodeU32(buf[4:8])
-	copy(l.listType[:], buf[8:12])
+	l.Size = decodeU32(buf[4:8])
+	copy(l.Type[:], buf[8:12])
 
-	switch l.listType {
+	switch l.Type {
 	case fcchdrl:
 		// avih chunk ... 8 + 56 bytes
 		if err := avi.ChunkReader(&l); err != nil {
@@ -295,7 +292,7 @@ func (avi *AVI) ListReader() (*List, error) {
 }
 
 func (avi *AVI) MOVIReader(num int) {
-	var l List
+	var movi_list List
 
 	buf, err := readData(avi, 12)
 	if err != nil {
@@ -312,14 +309,14 @@ func (avi *AVI) MOVIReader(num int) {
 		return
 	}
 
-	l.listType = fccmovi
-	l.listSize = decodeU32(buf[4:8])
+	movi_list.Type = fccmovi
+	movi_list.Size = decodeU32(buf[4:8])
 
 	for i := 0; i < num; i++ {
-		avi.ImageChunkReader(&l)
+		avi.ImageChunkReader(&movi_list)
 	}
 
-	avi.lists = append(avi.lists, &l)
+	avi.lists = append(avi.lists, &movi_list)
 }
 
 func (avi *AVI) ImageChunkReader(l *List) error {
@@ -327,34 +324,34 @@ func (avi *AVI) ImageChunkReader(l *List) error {
 	ick := ImageChunk{}
 
 	l.imageNum += 1
-	ick.ckImageID = l.imageNum
+	ick.ImageID = l.imageNum
 
 	buf, err := readData(avi, 8)
 	if err != nil {
 		return err
 	}
 
-	ick.ckID = FOURCC{buf[0], buf[1], buf[2], buf[3]}
+	ick.ID = FOURCC{buf[0], buf[1], buf[2], buf[3]}
 
 	buf, err = readData(avi, decodeU32(buf[4:8]))
 	if err != nil {
 		return err
 	}
 
-	ick.ckImage = buf
+	ick.Image = buf
+	/*
+		myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
+		// this width height is hard cording
 
-	myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
-	// this width height is hard cording
+			for y := 0; y < 114; y++ {
+				for x := 0; x < 172; x++ {
+					myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
+				}
+			}
 
-	for y := 0; y < 114; y++ {
-		for x := 0; x < 172; x++ {
-			myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
-		}
-	}
-
-	myfile, _ := os.Create("result/test" + strconv.Itoa(ick.ckImageID) + ".png")
-	png.Encode(myfile, myimage)
-
+			myfile, _ := os.Create("result/test" + strconv.Itoa(ick.ckImageID) + ".png")
+			png.Encode(myfile, myimage)
+	*/
 	l.imagechunks = append(l.imagechunks, &ick)
 
 	return nil
@@ -369,23 +366,19 @@ func (avi *AVI) ChunkReader(l *List) error {
 
 	ck := Chunk{}
 
-	copy(ck.ckID[:], buf[:4])
-	ck.ckSize = decodeU32(buf[4:])
-	switch ck.ckID {
+	copy(ck.ID[:], buf[:4])
+	ck.Size = decodeU32(buf[4:])
+	switch ck.ID {
 	case fccavih:
-		ck.ckData, err = avi.AVIHeaderReader(ck.ckSize)
-
+		ck.Data, err = avi.AVIHeaderReader(ck.Size)
 	case fccstrh:
-		ck.ckData, err = avi.StreamHeaderReader(ck.ckSize)
-
+		ck.Data, err = avi.StreamHeaderReader(ck.Size)
 	case fccstrf:
-		ck.ckData, err = avi.StreamFormatReader(ck.ckSize)
-
+		ck.Data, err = avi.StreamFormatReader(ck.Size)
 	case fccindx:
-		ck.ckData, err = avi.MetaIndexReader(ck.ckSize)
-
+		ck.Data, err = avi.MetaIndexReader(ck.Size)
 	case fccdmlh:
-		ck.ckData, err = avi.ExtendedAVIHeaderReader(ck.ckSize)
+		ck.Data, err = avi.ExtendedAVIHeaderReader(ck.Size)
 	}
 	if err != nil {
 		return err
@@ -404,9 +397,9 @@ func (avi *AVI) JUNKReader(l *List) error {
 	if !equal(FOURCC{buf[0], buf[1], buf[2], buf[3]}, fccJUNK) {
 		return errMissingKeywordHeader
 	}
-	l.junkSize = decodeU32(buf[4:8])
+	l.JunkSize = decodeU32(buf[4:8])
 
-	buf, err = readData(avi, l.junkSize)
+	buf, err = readData(avi, l.JunkSize)
 
 	return nil
 }
