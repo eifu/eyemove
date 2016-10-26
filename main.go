@@ -12,24 +12,26 @@ import (
 )
 
 func main() {
-	flag.Parse()
-	root := flag.Arg(0)
 
-	dir_data, err := os.Open(root)
+	file, err := os.Open("test1.avi") // For read access.
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
-	// names has all the files from the directory
-	names, err := dir_data.Readdirnames(-1)
+	avi, err := HeadReader(file)
+
 	if err != nil {
-		log.Fatal(err)
+		t.Errorf(" %#v\n", err)
 	}
-	processed := Concurrent(names[:20])
+	fmt.Printf("%#v \n", avi)
+	avi.MOVIReader(40)
+
+	// avi.GetLists[1] is movi_list
+	processed := Concurrent(avi.GetLists())
 
 	json_data, _ := json.MarshalIndent(processed, "", "    ")
 
-	f, err := os.Create("data.json")
+	f, err := os.Create("test__data.json")
 	if err != nil {
 		panic(err)
 	}
@@ -43,15 +45,15 @@ func main() {
 
 }
 
-func Concurrent(names []string) []*manaco.EyeImage {
+func Concurrent(movi_lists []*avi.ImageChunk) []*manaco.EyeImage {
 	wg := new(sync.WaitGroup)
 	wg.Add(4)
 
-	final := make([]*manaco.EyeImage, len(names))
+	final := make([]*manaco.EyeImage, len(movi_lists))
 
-	size := len(names)
+	size := len(movi_lists)
 	for i := 0; i < 4; i++ {
-		n := names[i*size/4 : (i+1)*size/4]
+		n := movi_lists[i*size/4 : (i+1)*size/4]
 		f := final[i*size/4 : (i+1)*size/4]
 		go oneQuarter(wg, &n, &f)
 	}
@@ -60,7 +62,7 @@ func Concurrent(names []string) []*manaco.EyeImage {
 	return final
 }
 
-func oneQuarter(wg *sync.WaitGroup, names *[]string, result *[]*manaco.EyeImage) {
+func oneQuarter(wg *sync.WaitGroup, names *[]*avi.ImageChunk, result *[]*manaco.EyeImage) {
 	wg2 := new(sync.WaitGroup)
 	wg2.Add(len(*names))
 	var err error
@@ -77,23 +79,9 @@ func oneQuarter(wg *sync.WaitGroup, names *[]string, result *[]*manaco.EyeImage)
 	return
 }
 
-func oneFlame(filename string) (*manaco.EyeImage, error) {
-	path := "data/images/" + filename
-	log.Println(path + "is loading...")
-	infile, err := os.Open(path)
-	defer infile.Close()
-	if err != nil {
-		log.Printf("main open file :%v\n", err)
-		return nil, err
-	}
+func oneFlame(ick *avi.ImageChunk) (*manaco.EyeImage, error) {
 
-	img, _, err := image.Decode(infile)
-	if err != nil {
-		log.Printf("main read file :%v\n", err)
-		return nil, err
-	}
-
-	eye_image := manaco.InitEyeImage(&img, filename)
+	eye_image := manaco.InitEyeImage(ick)
 
 	eye_image.GaussianFilter()
 

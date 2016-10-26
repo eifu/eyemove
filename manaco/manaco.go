@@ -3,6 +3,7 @@ package manaco
 import (
 	"image"
 
+	"github.com/eifu/eyemove/avi"
 	"image/color"
 	_ "image/jpeg"
 	"log"
@@ -22,6 +23,21 @@ type EyeImage struct {
 	MyRGBA        *image.RGBA     `json:"-"`
 	MyCenter      []image.Point   `json:"MyCenter"`
 	MyRadius      []int           `json:"MyRadius"`
+}
+
+func InitEyeImage(imageChunk *avi.ImageChunk) *EyeImage {
+	m := image.NewRGBA(image.Rect(0, 0, 114, 172))
+	for y := 0; y < m.Bounds().Max.Y; y++ {
+		for x := 0; x < m.Bounds().Max.X; x++ {
+			m.Set(x, y, uint8(imageChunk.ckImage[x+y*114]))
+		}
+	}
+	myname := "image" + strconv.Itoa(imageChunk.ckImageID)
+	return &EyeImage{
+		MyName: myname,
+		MyRect: image.Rect(0, 0, 114, 174),
+		MyRGBA: m,
+	}
 }
 
 func InitEyeImage(img *image.Image, name string) *EyeImage {
