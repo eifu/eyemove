@@ -21,8 +21,13 @@ type EyeImage struct {
 	MyRect        image.Rectangle `json:"MyRect"`
 	OriginalImage *image.RGBA     `json:"-"`
 	MyRGBA        *image.RGBA     `json:"-"`
-	MyCenter      []image.Point   `json:"MyCenter"`
-	MyRadius      []int           `json:"MyRadius"`
+	MyCircle      []Circle        `json:"MyCircle"`
+}
+
+type Circle struct {
+	X int
+	Y int
+	R int
 }
 
 func Init(ick *avi.ImageChunk) *EyeImage {
@@ -187,8 +192,7 @@ func (eye *EyeImage) Hough(w []image.Point) {
 	}
 
 	for _, e := range cc {
-		eye.MyRadius = append(eye.MyRadius, e+MinEyeR)
-		eye.MyCenter = append(eye.MyCenter, cntl[e])
+		eye.MyCircle = append(eye.MyCircle, Circle{cntl[e].X, cntl[e].Y, e + MinEyeR})
 	}
 
 	for y := 0; y < rect.Max.Y; y++ {
@@ -205,8 +209,9 @@ func (eye *EyeImage) DrawCircle(i int) {
 	var red, g, b uint32
 	var deg, rad, x0, y0, x1, y1 float64
 
-	cnt := eye.MyCenter[i]
-	r := eye.MyRadius[i]
+	x := eye.MyCircle[i].X
+	y := eye.MyCircle[i].Y
+	r := eye.MyCircle[i].R
 
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
@@ -214,7 +219,7 @@ func (eye *EyeImage) DrawCircle(i int) {
 			temp.Set(x, y, color.RGBA{uint8(red), uint8(g), uint8(b), 0xFF})
 		}
 	}
-	xf, yf, rf := float64(cnt.X), float64(cnt.Y), float64(r)
+	xf, yf, rf := float64(x), float64(y), float64(r)
 	for deg = 0; deg < 45; deg++ {
 		rad = deg * math.Pi / 180.0
 		x1 = rf * math.Cos(rad)
@@ -252,7 +257,7 @@ func (eye *EyeImage) DrawCircle(i int) {
 		y0 = yf - y1
 		temp.Set(int(x0), int(y0), color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 	}
-	temp.Set(cnt.X, cnt.Y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
+	temp.Set(x, y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 
 	eye.MyRGBA = temp
 }

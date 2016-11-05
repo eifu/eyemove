@@ -31,7 +31,7 @@ func main() {
 
 	json_data, _ := json.MarshalIndent(processed, "", "    ")
 
-	f, err := os.Create("test1__data.json")
+	f, err := os.Create("data.json")
 	if err != nil {
 		panic(err)
 	}
