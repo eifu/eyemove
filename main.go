@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/eifu/eyemove/avi"
 	"github.com/eifu/eyemove/manaco"
 
 	"encoding/json"
-	"flag"
-	"image"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -13,25 +13,25 @@ import (
 
 func main() {
 
-	file, err := os.Open("test1.avi") // For read access.
+	file, err := os.Open("avi/test1.avi") // For read access.
 	if err != nil {
-		t.Error(err)
+		panic(err)
 	}
 
-	avi, err := HeadReader(file)
+	avi, err := avi.HeadReader(file)
 
 	if err != nil {
-		t.Errorf(" %#v\n", err)
+		panic(err)
 	}
 	fmt.Printf("%#v \n", avi)
 	avi.MOVIReader(40)
 
 	// avi.GetLists[1] is movi_list
-	processed := Concurrent(avi.GetLists())
+	processed := Concurrent(avi.GetMoviList())
 
 	json_data, _ := json.MarshalIndent(processed, "", "    ")
 
-	f, err := os.Create("test__data.json")
+	f, err := os.Create("test1__data.json")
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +81,7 @@ func oneQuarter(wg *sync.WaitGroup, names *[]*avi.ImageChunk, result *[]*manaco.
 
 func oneFlame(ick *avi.ImageChunk) (*manaco.EyeImage, error) {
 
-	eye_image := manaco.InitEyeImage(ick)
+	eye_image := manaco.Init(ick)
 
 	eye_image.GaussianFilter()
 

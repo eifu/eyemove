@@ -19,32 +19,37 @@ const (
 type EyeImage struct {
 	MyName        int             `json:"MyName"`
 	MyRect        image.Rectangle `json:"MyRect"`
-	OriginalImage *image.Image    `json:"-"`
+	OriginalImage *image.RGBA     `json:"-"`
 	MyRGBA        *image.RGBA     `json:"-"`
 	MyCenter      []image.Point   `json:"MyCenter"`
 	MyRadius      []int           `json:"MyRadius"`
 }
 
-func InitEyeImage(imageChunk *avi.ImageChunk) *EyeImage {
-	m := image.NewRGBA(image.Rect(0, 0, 114, 172))
-	for y := 0; y < m.Bounds().Max.Y; y++ {
-		for x := 0; x < m.Bounds().Max.X; x++ {
-			m.Set(x, y, uint8(imageChunk.ckImage[x+y*114]))
+func Init(ick *avi.ImageChunk) *EyeImage {
+	img := image.NewRGBA(image.Rect(0, 0, 114, 172))
+	original := image.NewRGBA(image.Rect(0, 0, 114, 172))
+	for y := 0; y < img.Bounds().Max.Y; y++ {
+		for x := 0; x < img.Bounds().Max.X; x++ {
+			img.Set(x, y, color.Gray{uint8(ick.Image[x+y*114])})
+			original.Set(x, y, color.Gray{uint8(ick.Image[x+y*114])})
 		}
 	}
-	myname := "image" + strconv.Itoa(imageChunk.ckImageID)
+
 	return &EyeImage{
-		MyName: myname,
-		MyRect: image.Rect(0, 0, 114, 174),
-		MyRGBA: m,
+		MyName:        ick.ImageID,
+		MyRect:        image.Rect(0, 0, 114, 174),
+		MyRGBA:        img,
+		OriginalImage: original,
 	}
 }
 
 func InitEyeImage(img *image.Image, name string) *EyeImage {
 	m := image.NewRGBA((*img).Bounds())
+	original := image.NewRGBA((*img).Bounds())
 	for y := 0; y < m.Bounds().Max.Y; y++ {
 		for x := 0; x < m.Bounds().Max.X; x++ {
 			m.Set(x, y, (*img).At(x, y))
+			original.Set(x, y, (*img).At(x, y))
 		}
 	}
 	r, err := regexp.Compile("([0-9]*)+.jpg")
@@ -60,7 +65,7 @@ func InitEyeImage(img *image.Image, name string) *EyeImage {
 	return &EyeImage{
 		MyName:        myname,
 		MyRect:        (*img).Bounds(),
-		OriginalImage: img,
+		OriginalImage: original,
 		MyRGBA:        m,
 	}
 }
