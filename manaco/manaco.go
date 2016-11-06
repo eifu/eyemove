@@ -18,7 +18,7 @@ const (
 
 type EyeImage struct {
 	MyName        int             `json:"MyName"`
-	MyRect        image.Rectangle `json:"MyRect"`
+	MyRect        image.Rectangle `json:"-"`
 	OriginalImage *image.RGBA     `json:"-"`
 	MyRGBA        *image.RGBA     `json:"-"`
 	MyCircle      []Circle        `json:"MyCircle"`
@@ -31,8 +31,11 @@ type Circle struct {
 }
 
 func Init(ick *avi.ImageChunk) *EyeImage {
-	img := image.NewRGBA(image.Rect(0, 0, 114, 172))
-	original := image.NewRGBA(image.Rect(0, 0, 114, 172))
+
+	r := image.Rect(0, 0, 172, 114)
+	img := image.NewRGBA(r)
+	original := image.NewRGBA(r)
+
 	for y := 0; y < img.Bounds().Max.Y; y++ {
 		for x := 0; x < img.Bounds().Max.X; x++ {
 			img.Set(x, y, color.Gray{uint8(ick.Image[x+y*114])})
@@ -42,7 +45,7 @@ func Init(ick *avi.ImageChunk) *EyeImage {
 
 	return &EyeImage{
 		MyName:        ick.ImageID,
-		MyRect:        image.Rect(0, 0, 114, 174),
+		MyRect:        r,
 		MyRGBA:        img,
 		OriginalImage: original,
 	}

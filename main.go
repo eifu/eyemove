@@ -24,9 +24,8 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%#v \n", avi)
-	avi.MOVIReader(40)
+	avi.MOVIReader(400)
 
-	// avi.GetLists[1] is movi_list
 	processed := Concurrent(avi.GetMoviList())
 
 	json_data, _ := json.MarshalIndent(processed, "", "    ")
@@ -72,6 +71,7 @@ func oneQuarter(wg *sync.WaitGroup, names *[]*avi.ImageChunk, result *[]*manaco.
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("done id: %d\n", e.ImageID)
 		wg2.Done()
 	}
 	wg2.Wait()
