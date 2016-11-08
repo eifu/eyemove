@@ -7,10 +7,12 @@ import (
 	"github.com/eifu/eyemove/avi"
 	"image/color"
 	_ "image/jpeg"
+
 	"image/png"
 	"log"
 	"math"
 	"os"
+
 	"regexp"
 	"strconv"
 )
@@ -20,11 +22,12 @@ const (
 )
 
 type EyeImage struct {
-	MyName        int             `json:"MyName"`
-	MyRect        image.Rectangle `json:"-"`
-	OriginalImage *image.RGBA     `json:"-"`
-	MyRGBA        *image.RGBA     `json:"-"`
-	MyCircle      []Circle        `json:"MyCircle"`
+	MyName          int             `json:"MyName"`
+	MyRect          image.Rectangle `json:"-"`
+	OriginalImage   *image.RGBA     `json:"-"`
+	MyRGBA          *image.RGBA     `json:"-"`
+	MyCircle        []Circle        `json:"-"`
+	ValidatedCircle Circle          `json:"ValidatedCircle"`
 }
 
 type Circle struct {
@@ -52,6 +55,110 @@ func Init(ick *avi.ImageChunk) *EyeImage {
 		MyRGBA:        img,
 		OriginalImage: original,
 	}
+}
+
+func validateNoise(e0, e1, e2, e3, e4, e5, e6 Circle) bool {
+	f0 := float64(e0.X) * 0.006
+	f0 += float64(e1.X) * 0.061
+	f0 += float64(e2.X) * 0.242
+	f0 += float64(e3.X) * 0.383
+	f0 += float64(e4.X) * 0.242
+	f0 += float64(e5.X) * 0.061
+	f0 += float64(e6.X) * 0.006
+
+	if float64(e3.X) < f0*0.95 || f0*1.05 < float64(e3.X) {
+		return false
+	}
+
+	f0 = float64(e0.Y) * 0.006
+	f0 += float64(e1.Y) * 0.061
+	f0 += float64(e2.Y) * 0.242
+	f0 += float64(e3.Y) * 0.383
+	f0 += float64(e4.Y) * 0.242
+	f0 += float64(e5.Y) * 0.061
+	f0 += float64(e6.Y) * 0.006
+
+	if float64(e3.Y) < f0*0.95 || f0*1.05 < float64(e3.Y) {
+		return false
+	}
+
+	f0 = float64(e0.R) * 0.006
+	f0 += float64(e1.R) * 0.061
+	f0 += float64(e2.R) * 0.242
+	f0 += float64(e3.R) * 0.383
+	f0 += float64(e4.R) * 0.242
+	f0 += float64(e5.R) * 0.061
+	f0 += float64(e6.R) * 0.006
+
+	if float64(e3.R) < f0*0.95 || f0*1.05 < float64(e3.R) {
+		return false
+	}
+
+	return true
+
+}
+
+func CleanNoise(lei []*EyeImage) {
+	// check first 5 frames.
+	var rightRindex int
+
+	lei[0].ValidatedCircle = lei[0].MyCircle[0]
+	lei[1].ValidatedCircle = lei[1].MyCircle[0]
+	lei[2].ValidatedCircle = lei[2].MyCircle[0]
+
+	e0 := lei[0].MyCircle[0]
+	e1 := lei[1].MyCircle[0]
+	e2 := lei[2].MyCircle[0]
+
+	var lei3circ, lei4circ, lei5circ, lei6circ []Circle
+	for lei_i, e := range lei[3 : len(lei)-4] {
+
+		lei3circ = e.MyCircle
+		lei4circ = lei[lei_i+1].MyCircle
+		lei5circ = lei[lei_i+2].MyCircle
+		lei6circ = lei[lei_i+3].MyCircle
+
+		for i, e3 := range lei3circ {
+			for _, e4 := range lei4circ {
+				for _, e5 := range lei5circ {
+					for _, e6 := range lei6circ {
+
+						if validateNoise(e0, e1, e2, e3, e4, e5, e6) {
+							rightRindex = i
+						}
+					}
+				}
+			}
+		}
+		lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
+		e0 = e1
+		e1 = e2
+		e2 = lei[lei_i].MyCircle[rightRindex]
+
+		for y := 0; y < lei[lei_i].MyRect.Max.Y; y++ {
+			for x := 0; x < lei[lei_i].MyRect.Max.X; x++ {
+				c, _, _, _ := (*lei[lei_i].OriginalImage).At(x, y).RGBA()
+				lei[lei_i].MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+			}
+		}
+
+		lei[lei_i].DrawCircle(rightRindex)
+
+		fname := fmt.Sprintf("image-id%d.png", lei[lei_i].MyName)
+		f, err := os.Create(fname)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = png.Encode(f, lei[lei_i].MyRGBA)
+
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(rightRindex)
+	}
+
 }
 
 func InitEyeImage(img *image.Image, name string) *EyeImage {
@@ -201,27 +308,29 @@ func (eye *EyeImage) Hough(w []image.Point) {
 		eye.MyCircle = append(eye.MyCircle, Circle{cntl[e].X, cntl[e].Y, e + MinEyeR})
 	}
 
-	for y := 0; y < rect.Max.Y; y++ {
-		for x := 0; x < rect.Max.X; x++ {
-			c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-			eye.MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+	_ = c // this is used for reassign the MyRGBA in the below block
+	/*
+		for y := 0; y < rect.Max.Y; y++ {
+			for x := 0; x < rect.Max.X; x++ {
+				c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
+				eye.MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
+			}
 		}
-	}
 
-	for i, _ := range cc {
-		eye.DrawCircle(i)
-	}
-	fname := fmt.Sprintf("image-id%d.png", eye.MyName)
-	f, err := os.Create(fname)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	err = png.Encode(f, eye.MyRGBA)
+		for i, _ := range cc {
+			eye.DrawCircle(i)
+		}
+		fname := fmt.Sprintf("image-id%d.png", eye.MyName)
+		f, err := os.Create(fname)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = png.Encode(f, eye.MyRGBA)
 
-	if err != nil {
-		panic(err)
-	}
+		if err != nil {
+			panic(err)
+		}*/
 
 }
 

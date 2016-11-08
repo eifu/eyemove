@@ -24,10 +24,10 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%#v \n", avi)
-	avi.MOVIReader(10)
+	avi.MOVIReader(15)
 
 	with_noise := Concurrent(avi.GetMoviList())
-
+	manaco.CleanNoise(with_noise)
 	json_data, _ := json.MarshalIndent(with_noise, "", "    ")
 
 	f, err := os.Create("data.json")
