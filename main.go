@@ -24,7 +24,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%#v \n", avi)
-	avi.MOVIReader(15)
+	avi.MOVIReader(200)
 
 	with_noise := Concurrent(avi.GetMoviList())
 	manaco.CleanNoise(with_noise)

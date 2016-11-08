@@ -3,15 +3,12 @@ package manaco
 import (
 	"image"
 
-	"fmt"
 	"github.com/eifu/eyemove/avi"
 	"image/color"
 	_ "image/jpeg"
 
-	"image/png"
 	"log"
 	"math"
-	"os"
 
 	"regexp"
 	"strconv"
@@ -111,9 +108,11 @@ func CleanNoise(lei []*EyeImage) {
 	e2 := lei[2].MyCircle[0]
 
 	var lei3circ, lei4circ, lei5circ, lei6circ []Circle
-	for lei_i, e := range lei[3 : len(lei)-4] {
+	for lei_i, _ := range lei[3 : len(lei)-4] {
 
-		lei3circ = e.MyCircle
+		rightRindex = 0
+
+		lei3circ = lei[lei_i].MyCircle
 		lei4circ = lei[lei_i+1].MyCircle
 		lei5circ = lei[lei_i+2].MyCircle
 		lei6circ = lei[lei_i+3].MyCircle
@@ -144,21 +143,19 @@ func CleanNoise(lei []*EyeImage) {
 
 		lei[lei_i].DrawCircle(rightRindex)
 
-		fname := fmt.Sprintf("image-id%d.png", lei[lei_i].MyName)
-		f, err := os.Create(fname)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		err = png.Encode(f, lei[lei_i].MyRGBA)
+		/*
+			fname := fmt.Sprintf("image-id%d.png", lei[lei_i].MyName)
+			f, err := os.Create(fname)
+			if err != nil {
+				panic(err)
+			}
+			defer f.Close()
+			err = png.Encode(f, lei[lei_i].MyRGBA)
 
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Println(rightRindex)
+			if err != nil {
+				panic(err)
+			}*/
 	}
-
 }
 
 func InitEyeImage(img *image.Image, name string) *EyeImage {
