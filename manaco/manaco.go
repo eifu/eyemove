@@ -108,54 +108,36 @@ func CleanNoise(lei []*EyeImage) {
 	e2 := lei[2].MyCircle[0]
 
 	var lei3circ, lei4circ, lei5circ, lei6circ []Circle
-	for lei_i, _ := range lei[3 : len(lei)-4] {
+	for lei_i, _ := range lei {
+		if lei_i < 3 || len(lei)-4 < lei_i {
+			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[0]
+		} else {
 
-		rightRindex = 0
+			rightRindex = 0
 
-		lei3circ = lei[lei_i].MyCircle
-		lei4circ = lei[lei_i+1].MyCircle
-		lei5circ = lei[lei_i+2].MyCircle
-		lei6circ = lei[lei_i+3].MyCircle
+			lei3circ = lei[lei_i].MyCircle
+			lei4circ = lei[lei_i+1].MyCircle
+			lei5circ = lei[lei_i+2].MyCircle
+			lei6circ = lei[lei_i+3].MyCircle
 
-		for i, e3 := range lei3circ {
-			for _, e4 := range lei4circ {
-				for _, e5 := range lei5circ {
-					for _, e6 := range lei6circ {
-
-						if validateNoise(e0, e1, e2, e3, e4, e5, e6) {
-							rightRindex = i
+			for i, e3 := range lei3circ {
+				for _, e4 := range lei4circ {
+					for _, e5 := range lei5circ {
+						for _, e6 := range lei6circ {
+							if validateNoise(e0, e1, e2, e3, e4, e5, e6) {
+								rightRindex = i
+							}
 						}
 					}
 				}
 			}
+			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
+			e0 = e1
+			e1 = e2
+			e2 = lei[lei_i].MyCircle[rightRindex]
 		}
-		lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
-		e0 = e1
-		e1 = e2
-		e2 = lei[lei_i].MyCircle[rightRindex]
-
-		for y := 0; y < lei[lei_i].MyRect.Max.Y; y++ {
-			for x := 0; x < lei[lei_i].MyRect.Max.X; x++ {
-				c, _, _, _ := (*lei[lei_i].OriginalImage).At(x, y).RGBA()
-				lei[lei_i].MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
-			}
-		}
-
-		lei[lei_i].DrawCircle(rightRindex)
-
-		/*
-			fname := fmt.Sprintf("image-id%d.png", lei[lei_i].MyName)
-			f, err := os.Create(fname)
-			if err != nil {
-				panic(err)
-			}
-			defer f.Close()
-			err = png.Encode(f, lei[lei_i].MyRGBA)
-
-			if err != nil {
-				panic(err)
-			}*/
 	}
+
 }
 
 func InitEyeImage(img *image.Image, name string) *EyeImage {
