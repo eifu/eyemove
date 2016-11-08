@@ -7,9 +7,9 @@ import (
 	"image/color"
 	_ "image/jpeg"
 
+	"fmt"
 	"log"
 	"math"
-
 	"regexp"
 	"strconv"
 )
@@ -112,7 +112,6 @@ func CleanNoise(lei []*EyeImage) {
 		if lei_i < 3 || len(lei)-4 < lei_i {
 			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[0]
 		} else {
-
 			rightRindex = 0
 
 			lei3circ = lei[lei_i].MyCircle
@@ -120,21 +119,28 @@ func CleanNoise(lei []*EyeImage) {
 			lei5circ = lei[lei_i+2].MyCircle
 			lei6circ = lei[lei_i+3].MyCircle
 
-			for i, e3 := range lei3circ {
-				for _, e4 := range lei4circ {
-					for _, e5 := range lei5circ {
-						for _, e6 := range lei6circ {
-							if validateNoise(e0, e1, e2, e3, e4, e5, e6) {
-								rightRindex = i
+			if len(lei3circ) == 0 {
+				continue
+			} else {
+
+				for i, e3 := range lei3circ {
+					for _, e4 := range lei4circ {
+						for _, e5 := range lei5circ {
+							for _, e6 := range lei6circ {
+								if validateNoise(e0, e1, e2, e3, e4, e5, e6) {
+									rightRindex = i
+								}
 							}
 						}
 					}
 				}
+				fmt.Println("len ", len(lei[lei_i].MyCircle), "  ", rightRindex)
+				lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
+
+				e0 = e1
+				e1 = e2
+				e2 = lei[lei_i].MyCircle[rightRindex]
 			}
-			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
-			e0 = e1
-			e1 = e2
-			e2 = lei[lei_i].MyCircle[rightRindex]
 		}
 	}
 
