@@ -3,11 +3,14 @@ package manaco
 import (
 	"image"
 
+	"fmt"
 	"github.com/eifu/eyemove/avi"
 	"image/color"
 	_ "image/jpeg"
+	"image/png"
 	"log"
 	"math"
+	"os"
 	"regexp"
 	"strconv"
 )
@@ -38,8 +41,8 @@ func Init(ick *avi.ImageChunk) *EyeImage {
 
 	for y := 0; y < img.Bounds().Max.Y; y++ {
 		for x := 0; x < img.Bounds().Max.X; x++ {
-			img.Set(x, y, color.Gray{uint8(ick.Image[x+y*114])})
-			original.Set(x, y, color.Gray{uint8(ick.Image[x+y*114])})
+			img.Set(x, y, color.Gray{uint8(ick.Image[x+y*172])})
+			original.Set(x, y, color.Gray{uint8(ick.Image[x+y*172])})
 		}
 	}
 
@@ -204,6 +207,22 @@ func (eye *EyeImage) Hough(w []image.Point) {
 			eye.MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
 		}
 	}
+
+	for i, _ := range cc {
+		eye.DrawCircle(i)
+	}
+	fname := fmt.Sprintf("image-id%d.png", eye.MyName)
+	f, err := os.Create(fname)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	err = png.Encode(f, eye.MyRGBA)
+
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func (eye *EyeImage) DrawCircle(i int) {
@@ -263,6 +282,7 @@ func (eye *EyeImage) DrawCircle(i int) {
 	temp.Set(x, y, color.RGBA{0x32, 0x7D, 0x7D, 0xFF})
 
 	eye.MyRGBA = temp
+
 }
 
 func (eye *EyeImage) GaussianFilter() {

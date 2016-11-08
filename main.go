@@ -24,11 +24,11 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%#v \n", avi)
-	avi.MOVIReader(400)
+	avi.MOVIReader(10)
 
-	processed := Concurrent(avi.GetMoviList())
+	with_noise := Concurrent(avi.GetMoviList())
 
-	json_data, _ := json.MarshalIndent(processed, "", "    ")
+	json_data, _ := json.MarshalIndent(with_noise, "", "    ")
 
 	f, err := os.Create("data.json")
 	if err != nil {
@@ -41,7 +41,6 @@ func main() {
 		panic(err)
 	}
 	log.Printf("Wrote %d bytes\n", n)
-
 }
 
 func Concurrent(movi_lists []*avi.ImageChunk) []*manaco.EyeImage {
