@@ -12,6 +12,8 @@
 <label for="x_value">X value with respect to time</label>
 <div id="y_value"></div>
 <label for="y_value">Y value with respect to time</label>
+<div id="r_value"></div>
+<label for="r_value">R value with respect to time</label>
 <script>
 var margin = {top:0, right:0,bottom:20, left:50},
     width = 700,
@@ -25,10 +27,13 @@ var xScale = d3.scale.linear()
 .range([0, width]);
 
 var yScale_forX = d3.scale.linear()
-.range([0, height/2]);
+.range([0, height/3]);
 
 var yScale_forY = d3.scale.linear()
-.range([0, height/2]);
+.range([0, height/3]);
+
+var yScale_forR = d3.scale.linear()
+.range([0, height/3])
 
 var valueline_forX = d3.svg.line()
     .x(function(d) { return xScale(d.id); })
@@ -40,20 +45,35 @@ var valueline_forY = d3.svg.line()
     .y(function(d) { return yScale_forY(d.Y); })
     .interpolate("basis");
 
+var valueline_forR = d3.svg.line()
+    .x(function(d) { return xScale(d.id); })
+    .y(function(d) { return yScale_forR(d.R); })
+    .interpolate("basis");
+
+
 var svg_Xvalue = d3.select("#x_value")
               .append("svg")
               .attr("width", width)
-              .attr("height", height/2);
+              .attr("height", height/3);
 
 var svg_Yvalue = d3.select("#y_value")
               .append("svg")
               .attr("width", width)
-              .attr("height", height/2); 
+              .attr("height", height/3); 
+
+var svg_Rvalue = d3.select("#r_value")
+              .append("svg")
+              .attr("width", width)
+              .attr("height", height/3);
+
+var bisectDate = d3.bisector(function(d) { return d.id; }).left;
+
+var data_foruse = [];
+
 
 d3.json("data.json", function(error, data) {
   if (error) throw error;
 
-  var data_foruse = [];
   
   data.forEach(function(d){
     data_foruse.push({
@@ -95,7 +115,38 @@ d3.json("data.json", function(error, data) {
   .attr("stroke", "blue")
   .attr("stroke-width", 2)
   .attr("fill", "none");
+  // Append marker
+  var marker = svg_Xvalue.append('circle')
+  .attr('r', 10)
+  .style('display', 'none')
+  .attr("fill", function(d){return  "rgb(50,124,203)";})
+  .style('pointer-events', 'none')
+  .style('stroke-width', '3px');
 
+  // Create custom bisector
+  var bisect = d3.bisector(function(d) {
+    return d.id;
+  }).right;
+
+  // Add event listeners/handlers
+  svg_Xvalue.on('mouseover', function() {
+    marker.style('display', 'inherit');
+  }).on('mouseout', function() {
+    marker.style('display', 'none');
+  }).on('mousemove', function() {
+    var mouse = d3.mouse(this);
+    marker.attr('cx', mouse[0]);
+
+
+  var timestamp = xScale.invert(mouse[0]),
+    index = bisect(data_foruse, timestamp),
+    startDatum = data_foruse[index - 1],
+    endDatum = data_foruse[index],
+    interpolate = d3.interpolateNumber(startDatum.X, endDatum.X),
+    range = endDatum.id - startDatum.id,
+    valueY = interpolate((timestamp % range) / range);
+  marker.attr('cy', yScale_forX(valueY));
+})
 
 
   xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
@@ -129,11 +180,39 @@ d3.json("data.json", function(error, data) {
   .attr("fill", "none")
 
 
+  xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
+  yScale_forR.domain([d3.min(data_foruse, function(d){return d.R}), d3.max(data_foruse, function(d) { return d.R; })]);
 
-  });
-  
+
+  svg_Rvalue.selectAll(".dot")
+  .data(data_foruse)
+  .enter()
+  .append("circle")
+        .attr("class", "dot")
+        .attr("r", 5)
+        .attr("cx", function(d){return xScale(d.id)})
+        .attr("cy", function(d){return yScale_forR(d.R)})
+        .attr("fill", function(d){return "rgb(161,190,230)";})
+  .on("mouseover", function(d){
+    d3.select(this)
+      .attr("r", 10)
+      .attr("fill", function(d){return  "rgb(50,124,203)";});
+  })
+  .on("mouseout", function(d){
+    d3.select(this)
+      .attr("r", 5)
+      .attr("fill", function(d){return "rgb(161,190,230)";})
+  })
+
+  svg_Rvalue.append("path")
+  .attr("d", valueline_forR(data_foruse))
+  .attr("stroke", "green")
+  .attr("stroke-width", 2)
+  .attr("fill", "none")
 
 
+
+})
 </script>
 
 
