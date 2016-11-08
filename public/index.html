@@ -9,6 +9,9 @@
 </head>
 <body>
 <div id="x_value"></div>
+<label for="x_value">X value with respect to time</label>
+<div id="y_value"></div>
+<label for="y_value">Y value with respect to time</label>
 <script>
 var margin = {top:0, right:0,bottom:20, left:50},
     width = 700,
@@ -21,17 +24,31 @@ var margin = {top:0, right:0,bottom:20, left:50},
 var xScale = d3.scale.linear()
 .range([0, width]);
 
-var yScale = d3.scale.linear()
-.range([0, height]);
+var yScale_forX = d3.scale.linear()
+.range([0, height/2]);
 
-var valueline = d3.svg.line()
+var yScale_forY = d3.scale.linear()
+.range([0, height/2]);
+
+var valueline_forX = d3.svg.line()
     .x(function(d) { return xScale(d.id); })
-    .y(function(d) { return yScale(d.X); });
+    .y(function(d) { return yScale_forX(d.X); })
+    .interpolate("basis");
 
-var svg = d3.select("#x_value")
+var valueline_forY = d3.svg.line()
+    .x(function(d) { return xScale(d.id); })
+    .y(function(d) { return yScale_forY(d.Y); })
+    .interpolate("basis");
+
+var svg_Xvalue = d3.select("#x_value")
               .append("svg")
               .attr("width", width)
-              .attr("height", height);
+              .attr("height", height/2);
+
+var svg_Yvalue = d3.select("#y_value")
+              .append("svg")
+              .attr("width", width)
+              .attr("height", height/2); 
 
 d3.json("data.json", function(error, data) {
   if (error) throw error;
@@ -39,31 +56,28 @@ d3.json("data.json", function(error, data) {
   var data_foruse = [];
   
   data.forEach(function(d){
-    d_c = d["MyCircle"];
-    for (i in d_c){
-      data_foruse.push({
-        X: +d_c[i].X,
-        Y: +d_c[i].Y,
-        R: +d_c[i].R,
-        id: d["MyName"]
-      })
-    }
+    data_foruse.push({
+      X: +d["ValidatedCircle"]["X"],
+      Y: +d["ValidatedCircle"]["Y"],
+      R: +d["ValidatedCircle"]["R"],
+      id: d["MyName"]
+    })
   });
 
   console.log(data_foruse);
 
-  xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
-  yScale.domain([0, d3.max(data_foruse, function(d) { return d.X; })]);
+  xScale.domain([d3.min(data_foruse, function(d){return d.id}), d3.max(data_foruse, function(d){return d.id})])
+  yScale_forX.domain([d3.min(data_foruse, function(d){return d.X}), d3.max(data_foruse, function(d) { return d.X; })]);
 
 
-  svg.selectAll(".dot")
+  svg_Xvalue.selectAll(".dot")
   .data(data_foruse)
   .enter()
   .append("circle")
         .attr("class", "dot")
         .attr("r", 5)
         .attr("cx", function(d){return xScale(d.id)})
-        .attr("cy", function(d){return yScale(d.X)})
+        .attr("cy", function(d){return yScale_forX(d.X)})
         .attr("fill", function(d){return "rgb(161,190,230)";})
   .on("mouseover", function(d){
     d3.select(this)
@@ -76,9 +90,48 @@ d3.json("data.json", function(error, data) {
       .attr("fill", function(d){return "rgb(161,190,230)";})
   })
 
+  svg_Xvalue.append("path")
+  .attr("d", valueline_forX(data_foruse))
+  .attr("stroke", "blue")
+  .attr("stroke-width", 2)
+  .attr("fill", "none");
+
+
+
+  xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
+  yScale_forY.domain([d3.min(data_foruse, function(d){return d.Y}), d3.max(data_foruse, function(d) { return d.Y; })]);
+
+
+  svg_Yvalue.selectAll(".dot")
+  .data(data_foruse)
+  .enter()
+  .append("circle")
+        .attr("class", "dot")
+        .attr("r", 5)
+        .attr("cx", function(d){return xScale(d.id)})
+        .attr("cy", function(d){return yScale_forY(d.Y)})
+        .attr("fill", function(d){return "rgb(161,190,230)";})
+  .on("mouseover", function(d){
+    d3.select(this)
+      .attr("r", 10)
+      .attr("fill", function(d){return  "rgb(50,124,203)";});
+  })
+  .on("mouseout", function(d){
+    d3.select(this)
+      .attr("r", 5)
+      .attr("fill", function(d){return "rgb(161,190,230)";})
+  })
+
+  svg_Yvalue.append("path")
+  .attr("d", valueline_forY(data_foruse))
+  .attr("stroke", "red")
+  .attr("stroke-width", 2)
+  .attr("fill", "none")
+
 
 
   });
+  
 
 
 </script>
