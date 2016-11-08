@@ -116,7 +116,7 @@ d3.json("data.json", function(error, data) {
   .attr("stroke-width", 2)
   .attr("fill", "none");
   // Append marker
-  var marker = svg_Xvalue.append('circle')
+  var marker_X = svg_Xvalue.append('circle')
   .attr('r', 10)
   .style('display', 'none')
   .attr("fill", function(d){return  "rgb(50,124,203)";})
@@ -130,23 +130,21 @@ d3.json("data.json", function(error, data) {
 
   // Add event listeners/handlers
   svg_Xvalue.on('mouseover', function() {
-    marker.style('display', 'inherit');
+    marker_X.style('display', 'inherit');
   }).on('mouseout', function() {
-    marker.style('display', 'none');
+    marker_X.style('display', 'none');
   }).on('mousemove', function() {
     var mouse = d3.mouse(this);
-    marker.attr('cx', mouse[0]);
-
-
-  var timestamp = xScale.invert(mouse[0]),
+    marker_X.attr('cx', mouse[0]);
+    var timestamp = xScale.invert(mouse[0]),
     index = bisect(data_foruse, timestamp),
     startDatum = data_foruse[index - 1],
     endDatum = data_foruse[index],
     interpolate = d3.interpolateNumber(startDatum.X, endDatum.X),
     range = endDatum.id - startDatum.id,
     valueY = interpolate((timestamp % range) / range);
-  marker.attr('cy', yScale_forX(valueY));
-})
+    marker_X.attr('cy', yScale_forX(valueY));
+  })
 
 
   xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
@@ -179,6 +177,32 @@ d3.json("data.json", function(error, data) {
   .attr("stroke-width", 2)
   .attr("fill", "none")
 
+  // Append marker
+  var marker_Y = svg_Yvalue.append('circle')
+  .attr('r', 10)
+  .style('display', 'none')
+  .attr("fill", function(d){return  "rgb(50,124,203)";})
+  .style('pointer-events', 'none')
+  .style('stroke-width', '3px');
+
+  // Add event listeners/handlers
+  svg_Yvalue.on('mouseover', function() {
+    marker_Y.style('display', 'inherit');
+  }).on('mouseout', function() {
+    marker_Y.style('display', 'none');
+  }).on('mousemove', function() {
+    var mouse = d3.mouse(this);
+    marker_Y.attr('cx', mouse[0]);
+    var timestamp = xScale.invert(mouse[0]),
+    index = bisect(data_foruse, timestamp),
+    startDatum = data_foruse[index - 1],
+    endDatum = data_foruse[index],
+    interpolate = d3.interpolateNumber(startDatum.Y, endDatum.Y),
+    range = endDatum.id - startDatum.id,
+    valueY = interpolate((timestamp % range) / range);
+    marker_Y.attr('cy', yScale_forY(valueY));
+  })
+
 
   xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
   yScale_forR.domain([d3.min(data_foruse, function(d){return d.R}), d3.max(data_foruse, function(d) { return d.R; })]);
@@ -210,6 +234,31 @@ d3.json("data.json", function(error, data) {
   .attr("stroke-width", 2)
   .attr("fill", "none")
 
+  // Append marker
+  var marker_R = svg_Rvalue.append('circle')
+  .attr('r', 10)
+  .style('display', 'none')
+  .attr("fill", function(d){return  "rgb(50,124,203)";})
+  .style('pointer-events', 'none')
+  .style('stroke-width', '3px');
+
+  // Add event listeners/handlers
+  svg_Rvalue.on('mouseover', function() {
+    marker_R.style('display', 'inherit');
+  }).on('mouseout', function() {
+    marker_R.style('display', 'none');
+  }).on('mousemove', function() {
+    var mouse = d3.mouse(this);
+    marker_R.attr('cx', mouse[0]);
+    var timestamp = xScale.invert(mouse[0]),
+    index = bisect(data_foruse, timestamp),
+    startDatum = data_foruse[index - 1],
+    endDatum = data_foruse[index],
+    interpolate = d3.interpolateNumber(startDatum.R, endDatum.R),
+    range = endDatum.id - startDatum.id,
+    valueR = interpolate((timestamp % range) / range);
+    marker_R.attr('cy', yScale_forR(valueR));
+  })
 
 
 })
