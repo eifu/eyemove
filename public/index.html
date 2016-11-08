@@ -12,7 +12,7 @@
 <script>
 var margin = {top:0, right:0,bottom:20, left:50},
     width = 700,
-    height = 300,
+    height = 700,
     barPadding = 1,
     label_index=0,
     diff = 0;
@@ -60,9 +60,20 @@ d3.json("data.json", function(error, data) {
   .enter()
   .append("circle")
         .attr("class", "dot")
-        .attr("r", 1)
+        .attr("r", 3)
         .attr("cx", function(d){return xScale(d.id)})
         .attr("cy", function(d){return yScale(d.X)})
+
+  .on("mouseover", function(d){
+    d3.select(this)
+      .attr("r", 10)
+      .attr("fill", function(d){return  "rgb(50,124,203)";});
+  })
+  .on("mouseout", function(d){
+    d3.select(this)
+      .attr("r", 3)
+      .attr("fill", function(d){return "rgb(0,0,0)";});
+  })
 
 
   });
