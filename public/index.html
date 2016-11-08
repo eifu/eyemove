@@ -55,15 +55,16 @@ d3.json("data.json", function(error, data) {
   xScale.domain([0, d3.max(data_foruse, function(d){return d.id})])
   yScale.domain([0, d3.max(data_foruse, function(d) { return d.X; })]);
 
+
   svg.selectAll(".dot")
   .data(data_foruse)
   .enter()
   .append("circle")
         .attr("class", "dot")
-        .attr("r", 3)
+        .attr("r", 5)
         .attr("cx", function(d){return xScale(d.id)})
         .attr("cy", function(d){return yScale(d.X)})
-
+        .attr("fill", function(d){return "rgb(161,190,230)";})
   .on("mouseover", function(d){
     d3.select(this)
       .attr("r", 10)
@@ -71,13 +72,13 @@ d3.json("data.json", function(error, data) {
   })
   .on("mouseout", function(d){
     d3.select(this)
-      .attr("r", 3)
-      .attr("fill", function(d){return "rgb(0,0,0)";});
+      .attr("r", 5)
+      .attr("fill", function(d){return "rgb(161,190,230)";})
   })
 
 
-  });
 
+  });
 
 
 </script>
