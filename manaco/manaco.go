@@ -64,6 +64,7 @@ func validateNoise(e0, e1, e2 Circle, e3 []Circle) int {
 	for i, e := range e3 {
 		if diff > (avg-float64(e.R))*(avg-float64(e.R)) {
 			val = i
+			diff = (avg - float64(e.R)) * (avg - float64(e.R))
 		}
 	}
 
