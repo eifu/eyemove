@@ -168,7 +168,7 @@ func (ick *ImageChunk) ImageChunkPrint(indent string) {
 	fmt.Printf("%s%s ID: %d\n", indent, ick.ID, ick.ImageID)
 }
 
-func readData(avi *AVI, size uint32) ([]byte, error) {
+func (avi *AVI) readData(size uint32) ([]byte, error) {
 	data := make([]byte, size)
 	if _, err := avi.file.Read(data); err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func readData(avi *AVI, size uint32) ([]byte, error) {
 func HeadReader(f *os.File) (*AVI, error) {
 
 	avi := &AVI{file: f}
-	buf, err := readData(avi, 12)
+	buf, err := avi.readData(12)
 	if err != nil {
 		return nil, err
 	}
@@ -215,9 +215,6 @@ func HeadReader(f *os.File) (*AVI, error) {
 	}
 	avi.lists = append(avi.lists, list)
 
-	// movi
-	//	avi.MOVIReader()
-
 	return avi, nil
 }
 
@@ -225,7 +222,7 @@ func HeadReader(f *os.File) (*AVI, error) {
 func (avi *AVI) ListReader() (*List, error) {
 	var l List
 
-	buf, err := readData(avi, 12)
+	buf, err := avi.readData(12)
 	if err != nil {
 		return nil, err
 	}
@@ -285,16 +282,14 @@ func (avi *AVI) ListReader() (*List, error) {
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
-
 	}
-
 	return &l, nil
 }
 
 func (avi *AVI) MOVIReader(num int) {
 	var movi_list List
 
-	buf, err := readData(avi, 12)
+	buf, err := avi.readData(12)
 	if err != nil {
 		return
 	}
@@ -326,32 +321,20 @@ func (avi *AVI) ImageChunkReader(l *List) error {
 	l.imageNum += 1
 	ick.ImageID = l.imageNum
 
-	buf, err := readData(avi, 8)
+	buf, err := avi.readData(8)
 	if err != nil {
 		return err
 	}
 
 	ick.ID = FOURCC{buf[0], buf[1], buf[2], buf[3]}
 
-	buf, err = readData(avi, decodeU32(buf[4:8]))
+	buf, err = avi.readData(decodeU32(buf[4:8]))
 	if err != nil {
 		return err
 	}
 
 	ick.Image = buf
-	/*
-		myimage := image.NewRGBA(image.Rect(0, 0, 172, 114))
-		// this width height is hard cording
 
-			for y := 0; y < 114; y++ {
-				for x := 0; x < 172; x++ {
-					myimage.Set(x, y, color.Gray{uint8(buf[x+y*172])})
-				}
-			}
-
-			myfile, _ := os.Create("result/test" + strconv.Itoa(ick.ckImageID) + ".png")
-			png.Encode(myfile, myimage)
-	*/
 	l.imagechunks = append(l.imagechunks, &ick)
 
 	return nil
@@ -359,7 +342,7 @@ func (avi *AVI) ImageChunkReader(l *List) error {
 
 func (avi *AVI) ChunkReader(l *List) error {
 
-	buf, err := readData(avi, 8)
+	buf, err := avi.readData(8)
 	if err != nil {
 		return err
 	}
@@ -387,9 +370,10 @@ func (avi *AVI) ChunkReader(l *List) error {
 	l.chunks = append(l.chunks, &ck) // add chunk object ck to l.chunks
 	return nil
 }
+
 func (avi *AVI) JUNKReader(l *List) error {
 
-	buf, err := readData(avi, 8)
+	buf, err := avi.readData(8)
 	if err != nil {
 		return err
 	}
@@ -399,14 +383,14 @@ func (avi *AVI) JUNKReader(l *List) error {
 	}
 	l.JunkSize = decodeU32(buf[4:8])
 
-	buf, err = readData(avi, l.JunkSize)
+	buf, err = avi.readData(l.JunkSize)
 
 	return nil
 }
 
 func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
-	buf, err := readData(avi, size)
+	buf, err := avi.readData(size)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +412,7 @@ func (avi *AVI) AVIHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
-	buf, err := readData(avi, size)
+	buf, err := avi.readData(size)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +441,7 @@ func (avi *AVI) StreamHeaderReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 
-	buf, err := readData(avi, size)
+	buf, err := avi.readData(size)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +464,7 @@ func (avi *AVI) StreamFormatReader(size uint32) (map[string]uint32, error) {
 
 func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 
-	buf, err := readData(avi, size)
+	buf, err := avi.readData(size)
 	if err != nil {
 		return nil, err
 	}
@@ -510,7 +494,7 @@ func (avi *AVI) MetaIndexReader(size uint32) (map[string]uint32, error) {
 }
 
 func (avi *AVI) ExtendedAVIHeaderReader(size uint32) (map[string]uint32, error) {
-	buf, err := readData(avi, size)
+	buf, err := avi.readData(size)
 	if err != nil {
 		return nil, err
 	}

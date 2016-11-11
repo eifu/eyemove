@@ -19,6 +19,5 @@ func TestRealAVIFile(t *testing.T) {
 	}
 	fmt.Printf("%#v \n", avi)
 	avi.MOVIReader(40)
-	//avi.AVIPrint()
-	fmt.Printf("%#v \n", avi.GetMoviList())
+	avi.AVIPrint()
 }
