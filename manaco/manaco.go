@@ -3,11 +3,10 @@ package manaco
 import (
 	"image"
 
+	"fmt"
 	"github.com/eifu/eyemove/avi"
 	"image/color"
 	_ "image/jpeg"
-
-	"fmt"
 	"image/png"
 	"log"
 	"math"
@@ -56,45 +55,19 @@ func Init(ick *avi.ImageChunk) *EyeImage {
 	}
 }
 
-func validateNoise(e0, e1, e2, e3, e4, e5, e6 Circle) bool {
-	f0 := float64(e0.X) * 0.006
-	f0 += float64(e1.X) * 0.061
-	f0 += float64(e2.X) * 0.242
-	f0 += float64(e3.X) * 0.383
-	f0 += float64(e4.X) * 0.242
-	f0 += float64(e5.X) * 0.061
-	f0 += float64(e6.X) * 0.006
+func validateNoise(e0, e1, e2 Circle, e3 []Circle) int {
 
-	if float64(e3.X) < f0*0.95 || f0*1.05 < float64(e3.X) {
-		return false
+	var avg float64 = float64(e0.R+e1.R+e2.R) / 3
+
+	var diff float64 = 100
+	var val int = 0
+	for i, e := range e3 {
+		if diff > (avg-float64(e.R))*(avg-float64(e.R)) {
+			val = i
+		}
 	}
 
-	f0 = float64(e0.Y) * 0.006
-	f0 += float64(e1.Y) * 0.061
-	f0 += float64(e2.Y) * 0.242
-	f0 += float64(e3.Y) * 0.383
-	f0 += float64(e4.Y) * 0.242
-	f0 += float64(e5.Y) * 0.061
-	f0 += float64(e6.Y) * 0.006
-
-	if float64(e3.Y) < f0*0.95 || f0*1.05 < float64(e3.Y) {
-		return false
-	}
-
-	f0 = float64(e0.R) * 0.006
-	f0 += float64(e1.R) * 0.061
-	f0 += float64(e2.R) * 0.242
-	f0 += float64(e3.R) * 0.383
-	f0 += float64(e4.R) * 0.242
-	f0 += float64(e5.R) * 0.061
-	f0 += float64(e6.R) * 0.006
-
-	if float64(e3.R) < f0*0.95 || f0*1.05 < float64(e3.R) {
-		return false
-	}
-
-	return true
-
+	return val
 }
 
 func CleanNoise(lei []*EyeImage) {
@@ -109,7 +82,6 @@ func CleanNoise(lei []*EyeImage) {
 	e1 := lei[1].MyCircle[0]
 	e2 := lei[2].MyCircle[0]
 
-	var lei3circ, lei4circ, lei5circ, lei6circ []Circle
 	for lei_i, _ := range lei {
 
 		for y := 0; y < lei[lei_i].MyRect.Max.Y; y++ {
@@ -122,29 +94,15 @@ func CleanNoise(lei []*EyeImage) {
 		if len(lei[lei_i].MyCircle) == 0 {
 			lei[lei_i].ValidatedCircle = e2
 
-		} else if lei_i < 3 || len(lei)-4 < lei_i {
+		} else if lei_i < 3 {
 			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[0]
 
 			lei[lei_i].DrawCircle(0)
 		} else {
 			rightRindex = 0
 
-			lei3circ = lei[lei_i].MyCircle
-			lei4circ = lei[lei_i+1].MyCircle
-			lei5circ = lei[lei_i+2].MyCircle
-			lei6circ = lei[lei_i+3].MyCircle
+			rightRindex = validateNoise(e0, e1, e2, lei[lei_i].MyCircle)
 
-			for i, e3 := range lei3circ {
-				for _, e4 := range lei4circ {
-					for _, e5 := range lei5circ {
-						for _, e6 := range lei6circ {
-							if validateNoise(e0, e1, e2, e3, e4, e5, e6) {
-								rightRindex = i
-							}
-						}
-					}
-				}
-			}
 			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
 
 			e0 = e1
@@ -153,6 +111,7 @@ func CleanNoise(lei []*EyeImage) {
 
 			lei[lei_i].DrawCircle(rightRindex)
 		}
+
 		fname := fmt.Sprintf("image-id%d.png", lei[lei_i].MyName)
 		f, err := os.Create(fname)
 		if err != nil {
