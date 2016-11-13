@@ -11,8 +11,8 @@ import (
 	"log"
 	"math"
 	"os"
-	"regexp"
-	"strconv"
+
+	"sort"
 )
 
 const (
@@ -24,8 +24,8 @@ type EyeImage struct {
 	MyRect          image.Rectangle `json:"-"`
 	OriginalImage   *image.RGBA     `json:"-"`
 	MyRGBA          *image.RGBA     `json:"-"`
-	MyCircle        []Circle        `json:"-"`
-	ValidatedCircle Circle          `json:"ValidatedCircle"`
+	MyCircle        []Circle        `json:"Mycircle"`
+	ValidatedCircle Circle          `json:"ValidtedCircle"`
 }
 
 type Circle struct {
@@ -57,14 +57,16 @@ func Init(ick *avi.ImageChunk) *EyeImage {
 
 func validateNoise(e0, e1, e2 Circle, e3 []Circle) int {
 
-	var avg float64 = float64(e0.R+e1.R+e2.R) / 3
+	var e_array []int = []int{e0.R, e1.R, e2.R}
+	sort.Ints(e_array)
+	var avg int = e_array[1]
 
-	var diff float64 = 100
+	var diff int = 100
 	var val int = 0
 	for i, e := range e3 {
-		if diff > (avg-float64(e.R))*(avg-float64(e.R)) {
+		if diff > (avg-e.R)*(avg-e.R) {
 			val = i
-			diff = (avg - float64(e.R)) * (avg - float64(e.R))
+			diff = (avg - e.R) * (avg - e.R)
 		}
 	}
 
@@ -100,8 +102,6 @@ func CleanNoise(lei []*EyeImage) {
 
 			lei[lei_i].DrawCircle(0)
 		} else {
-			rightRindex = 0
-
 			rightRindex = validateNoise(e0, e1, e2, lei[lei_i].MyCircle)
 
 			lei[lei_i].ValidatedCircle = lei[lei_i].MyCircle[rightRindex]
@@ -123,38 +123,10 @@ func CleanNoise(lei []*EyeImage) {
 
 		if err != nil {
 			panic(err)
-
 		}
 
 	}
 
-}
-
-func InitEyeImage(img *image.Image, name string) *EyeImage {
-	m := image.NewRGBA((*img).Bounds())
-	original := image.NewRGBA((*img).Bounds())
-	for y := 0; y < m.Bounds().Max.Y; y++ {
-		for x := 0; x < m.Bounds().Max.X; x++ {
-			m.Set(x, y, (*img).At(x, y))
-			original.Set(x, y, (*img).At(x, y))
-		}
-	}
-	r, err := regexp.Compile("([0-9]*)+.jpg")
-	if err != nil {
-		panic(err)
-	}
-	prefix := r.FindStringIndex(name)
-
-	myname, err := strconv.Atoi(name[prefix[0] : prefix[1]-4])
-	if err != nil {
-		panic(err)
-	}
-	return &EyeImage{
-		MyName:        myname,
-		MyRect:        (*img).Bounds(),
-		OriginalImage: original,
-		MyRGBA:        m,
-	}
 }
 
 func (eye *EyeImage) Hough(w []image.Point) {
@@ -293,31 +265,10 @@ func (eye *EyeImage) Hough(w []image.Point) {
 
 			eye.MyCircle = append(eye.MyCircle, Circle{cntl[e].X, cntl[e].Y, e + MinEyeR})
 		}
+
 	}
 
 	_ = c // this is used for reassign the MyRGBA in the below block
-	/*
-		for y := 0; y < rect.Max.Y; y++ {
-			for x := 0; x < rect.Max.X; x++ {
-				c, _, _, _ = (*eye.OriginalImage).At(x, y).RGBA()
-				eye.MyRGBA.Set(x, y, color.RGBA{uint8(c), uint8(c), uint8(c), 0xFF})
-			}
-		}
-
-		for i, _ := range cc {
-			eye.DrawCircle(i)
-		}
-		fname := fmt.Sprintf("image-id%d.png", eye.MyName)
-		f, err := os.Create(fname)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		err = png.Encode(f, eye.MyRGBA)
-
-		if err != nil {
-			panic(err)
-		}*/
 
 }
 
@@ -330,7 +281,7 @@ func (eye *EyeImage) DrawCircle(i int) {
 	x := eye.MyCircle[i].X
 	y := eye.MyCircle[i].Y
 	r := eye.MyCircle[i].R
-
+	fmt.Println("myname: ", eye.MyName, " x ", x, " y ", y, " r ", r)
 	for y := 0; y < rect.Max.Y; y++ {
 		for x := 0; x < rect.Max.X; x++ {
 			red, g, b, _ = eye.MyRGBA.At(x, y).RGBA()
