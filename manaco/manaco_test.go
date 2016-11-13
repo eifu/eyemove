@@ -3,14 +3,14 @@ package manaco
 import (
 	"fmt"
 	"image"
-	_ "image/png"
+	"image/png"
 	"os"
 	"testing"
 )
 
 func TestID1(t *testing.T) {
 
-	f, err := os.Open("id1_withCircle.png")
+	f, err := os.Open("image-id4.png")
 	if err != nil {
 		panic(err)
 	}
@@ -48,6 +48,26 @@ func TestID1(t *testing.T) {
 
 	eye_image.Hough(w)
 
-	fmt.Printf("%#v\n", eye_image)
+	for y := 0; y < eye_image.MyRect.Max.Y; y++ {
+		for x := 0; x < eye_image.MyRect.Max.X; x++ {
+			eye_image.MyRGBA.Set(x, y, eye_image.OriginalImage.At(x, y))
+		}
+	}
 
+	eye_image.DrawCircle(0)
+	eye_image.DrawCircle(1)
+
+	fname := fmt.Sprintf("test__%d.png", eye_image.MyName)
+
+	out_file, err := os.Create(fname)
+	if err != nil {
+		panic(err)
+	}
+	defer out_file.Close()
+	err = png.Encode(out_file, eye_image.MyRGBA)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%#v\n", eye_image)
 }
