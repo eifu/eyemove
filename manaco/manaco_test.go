@@ -1,13 +1,14 @@
 package manaco
 
 import (
+	"fmt"
 	"image"
 	_ "image/png"
 	"os"
 	"testing"
 )
 
-func main(t *testing.T) {
+func TestID1(t *testing.T) {
 
 	f, err := os.Open("id1_withCircle.png")
 	if err != nil {
@@ -46,5 +47,7 @@ func main(t *testing.T) {
 	w := eye_image.Binary()
 
 	eye_image.Hough(w)
+
+	fmt.Printf("%#v\n", eye_image)
 
 }
