@@ -272,6 +272,14 @@ func (eye *EyeImage) Hough(w []image.Point) {
 
 }
 
+func (eye *EyeImage) DrawAllCircle() {
+
+	for i, _ := range eye.MyCircle {
+		eye.DrawCircle(i)
+	}
+
+}
+
 func (eye *EyeImage) DrawCircle(i int) {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)

@@ -10,7 +10,7 @@ import (
 
 func TestID1(t *testing.T) {
 
-	f, err := os.Open("image-id4.png")
+	f, err := os.Open("image-id1.png")
 	if err != nil {
 		panic(err)
 	}
@@ -30,19 +30,17 @@ func TestID1(t *testing.T) {
 		}
 	}
 	eye_image := &EyeImage{
-		MyName:        999,
+		MyName:        997,
 		MyRect:        r,
 		MyRGBA:        img,
 		OriginalImage: original,
 	}
 
-	//	eye_image := manaco.Init(ick)
-
 	eye_image.GaussianFilter()
 
 	eye_image.CutoffRGBA()
 
-	eye_image.Sobel(2)
+	eye_image.Sobel(1)
 
 	w := eye_image.Binary()
 
@@ -55,7 +53,7 @@ func TestID1(t *testing.T) {
 	}
 
 	eye_image.DrawCircle(0)
-	eye_image.DrawCircle(1)
+	//	eye_image.DrawCircle(1)
 
 	fname := fmt.Sprintf("test__%d.png", eye_image.MyName)
 
