@@ -1,16 +1,12 @@
 package main
 
 import (
-	"io"
+	"log"
 	"net/http"
 )
 
 func main() {
-	http.HandleFunc("/", helloworld)
-	http.ListenAndServe(":8080", nil)
 
-}
+	log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir("./public"))))
 
-func helloworld(res http.ResponseWriter, req *http.Request) {
-	io.WriteString(res, "hello world")
 }
