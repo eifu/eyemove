@@ -14,17 +14,19 @@
     vertical
   }
 
-  #graph{
-    
-
+  .graph{
+     position: fixed;
+        left: 0px;
+        right: 0px;
+        top: 0px;
+        bottom: 0px;
   }
 
 
   </style>
 </head>
 <body>
-
-<div id="graph">
+<div class="graph">
 <div id="x_value"></div>
 <label for="x_value">X value with respect to time</label>
 <div id="y_value"></div>
@@ -33,13 +35,16 @@
 <label for="r_value">R value with respect to time</label>
 </div>
 <script>
-var margin = {top:0, right:0,bottom:20, left:50},
-    width = 1200,
-    height = 700,
+var margin = {top: 0, right:100,bottom:100, left:0},
+    width = parseInt(d3.select('.graph').style('width'), 10),
+    width = width - margin.left - margin.right
+    height = parseInt(d3.select('.graph').style('height'), 10),
+    height = height - margin.top - margin.bottom
     barPadding = 1,
     label_index=0,
     diff = 0;
 
+console.log(d3.select('.graph'))
 
 var xScale = d3.scale.linear()
 .range([0, width]);
@@ -282,7 +287,27 @@ d3.json("data.json", function(error, data) {
   })
 
 
-})
+  // resize()
+  // d3.select(window).on("resize", resize)
+
+  // function resize(){
+  //   w = window
+  //   d = document
+  //   e = d.documentElement
+  //   g = d.getElementsByTagName('body')[0]
+
+  //   width = w.innerWidth || e.clientWidth || g.clientWidth;
+  //   height = w.innerHeight|| e.clientHeight|| g.clientHeight;
+  //   svg_Xvalue.attr("width", width)
+  //             .attr("height", height/3);
+  //   svg_Yvalue.attr("width", width)
+  //             .attr("height", height/3);
+  //   svg_Rvalue.attr("width", width)
+  //             .attr("height", height/3);
+  //   //force.size([width, height]).resume();
+  // }
+
+});
 </script>
 
 
