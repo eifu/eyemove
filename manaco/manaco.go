@@ -340,6 +340,9 @@ func (eye *EyeImage) DrawCircle(i int) {
 
 }
 
+// GaussianFilter filters an image data in eye and make it smooth.
+// Current implementation is optimized by memoization
+// This Gaussian filter uses covonlutional computation
 func (eye *EyeImage) GaussianFilter() {
 
 	temp := &EyeImage{
@@ -347,12 +350,12 @@ func (eye *EyeImage) GaussianFilter() {
 		OriginalImage: eye.OriginalImage,
 		MyRGBA:        image.NewRGBA(eye.MyRect),
 	}
-	// convolution algorithm
+
 	var c0 uint32
 	var c float64
 	var mid []int
 
-	// store floating val to int array from 0 to 255
+	// store floating val to int array from 0 to 255 for memoization
 	c_arr := make([]float64, 256*4)
 	for i := 0; i < 256; i++ {
 		c_arr[4*i] = float64(i) * 0.383
@@ -361,6 +364,7 @@ func (eye *EyeImage) GaussianFilter() {
 		c_arr[4*i+3] = float64(i) * 0.006
 	}
 
+	// vertical filter
 	for y := 0; y < eye.MyRect.Max.Y; y++ {
 
 		// store a column of pixel val to int array
@@ -393,6 +397,7 @@ func (eye *EyeImage) GaussianFilter() {
 		}
 	}
 
+	// horizontal filter
 	for x := 0; x < temp.MyRect.Max.X; x++ {
 
 		// store a column of pixel val to int array
@@ -426,31 +431,11 @@ func (eye *EyeImage) GaussianFilter() {
 	}
 }
 
-func conv1d(c0, c1, c2, c3, c4, c5, c6 uint32) uint8 {
-	f0 := float64(c0&0xFF) * 0.006
-	f0 += float64(c1&0xFF) * 0.061
-	f0 += float64(c2&0xFF) * 0.242
-	f0 += float64(c3&0xFF) * 0.383
-	f0 += float64(c4&0xFF) * 0.242
-	f0 += float64(c5&0xFF) * 0.061
-	f0 += float64(c6&0xFF) * 0.006
-	return uint8(f0)
-}
-
-func conv1d2(a []uint32) uint8 {
-	if len(a) != 7 {
-		log.Fatalf("conv1d2: error invalid length %v\n", a)
-	}
-	f0 := float64(a[0]&0xFF) * 0.006
-	f0 += float64(a[1]&0xFF) * 0.061
-	f0 += float64(a[2]&0xFF) * 0.242
-	f0 += float64(a[3]&0xFF) * 0.383
-	f0 += float64(a[4]&0xFF) * 0.242
-	f0 += float64(a[5]&0xFF) * 0.061
-	f0 += float64(a[6]&0xFF) * 0.006
-	return uint8(f0)
-}
-
+// Binary changes myRGB in eye to Binary image.
+// and returns an array of 'white' pixel in the binary image
+// currently the way it takes binary image is
+// if a pixel is blighter than average color, turn it to white
+// if a pixel is darker than average color, turn it to black
 func (eye *EyeImage) Binary() []image.Point {
 	rect := eye.MyRect
 	width, height := rect.Max.X, rect.Max.Y
@@ -482,6 +467,10 @@ func (eye *EyeImage) Binary() []image.Point {
 	return w
 }
 
+// CutoffRGBA changes myRGBA and turn 'blighter-than-average' pixel
+// to average color.
+// The purpose of this function is to remove the flash light
+// in the image.
 func (eye *EyeImage) CutoffRGBA() {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
@@ -509,7 +498,8 @@ func (eye *EyeImage) CutoffRGBA() {
 	eye.MyRGBA = temp
 }
 
-func ExpandRGBA(img image.Image) *image.RGBA {
+// This is normalization of pixel value.
+func NormalizeRGBA(img image.Image) *image.RGBA {
 	rect := img.Bounds()
 
 	var min, max uint8 = 0xFF, 0
@@ -544,6 +534,18 @@ func luminosity(r, g, b uint8) float64 {
 	return float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.0722
 }
 
+// Sobel finds the edge in an image.
+// Sobel Algorithm: Given a image, you extract 3 by 3 pixcels matrix.
+//
+// a b c
+// d e f
+// g h i
+//
+// After the Sobel algorithm, the value of e must be as following.
+//
+// e = sqrt{ (a + w*b + c - g - w*h - i)^2 + (a + w*d + g - c - w*f - i)^2 }
+//
+// where w is a positive integer argument
 func (eye *EyeImage) Sobel(w float64) {
 	rect := eye.MyRect
 	temp := image.NewRGBA(rect)
