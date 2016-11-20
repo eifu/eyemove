@@ -11,14 +11,12 @@ import (
 )
 
 var (
-	errMissingPaddingByte     = errors.New("avi: missing padding byte")
 	errMissingKeywordHeader   = errors.New("avi: missing keyword")
 	errMissingRIFFChunkHeader = errors.New("avi: missing RIFF chunk header")
 	errMissingAVIChunkHeader  = errors.New("avi: missing AVI chunk header")
 	errMissingLIST            = errors.New("avi: missing LIST keyword")
 	errListSubchunkTooLong    = errors.New("avi: list subchunk too long")
 	errShortData              = errors.New("avi: short data")
-	errStaleReader            = errors.New("avi: stale reader")
 
 	fccRIFF = FOURCC{'R', 'I', 'F', 'F'}       // RIFF is super class of avi file
 	fccAVI  = FOURCC{'A', 'V', 'I', ' '}       // AVI is identifier of avi file
@@ -83,12 +81,6 @@ type ImageChunk struct {
 	Size    uint32
 	Image   []byte
 	ImageID int
-}
-
-type SuperIndex struct {
-	qwOffset   int64
-	dwSize     uint32
-	dwDuration uint32
 }
 
 // u32 decodes the first four bytes of b as a little-endian integer.
@@ -201,14 +193,15 @@ func HeadReader(f *os.File) (*AVI, error) {
 		return nil, errMissingRIFFChunkHeader
 	}
 
+	// Read size of AVI file
+	avi.Size = decodeU32(buf[4:8])
+
 	// Make sure the 9th to 11th bytes is 'AVI '
 	if !equal([4]byte{buf[8], buf[9], buf[10], buf[11]}, fccAVI) {
 		return nil, errMissingAVIChunkHeader
 	}
 
-	avi.Size = decodeU32(buf[4:8])
-
-	// hdrl
+	// Read hdrl list
 	list, err := avi.ListReader()
 	if err != nil {
 		return nil, err
@@ -232,53 +225,56 @@ func (avi *AVI) ListReader() (*List, error) {
 		return nil, errMissingLIST
 	}
 
+	// Read size of the list
 	l.Size = decodeU32(buf[4:8])
+
+	// Read type of the list
 	copy(l.Type[:], buf[8:12])
 
 	switch l.Type {
 	case fcchdrl:
-		// avih chunk ... 8 + 56 bytes
+		// Read avih chunk ... 8 + 56 bytes
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
-		// strl List ... 12 + 56
+		// Read strl List ... 12 + 56
 		l2, err := avi.ListReader()
 		if err != nil {
 			return nil, err
 		}
 		l.lists = append(l.lists, l2)
 
-		// odml List ... 12 + 40
+		// Read odml List ... 12 + 40
 		l3, err := avi.ListReader()
 		if err != nil {
 			return nil, err
 		}
 		l.lists = append(l.lists, l3)
 
-		// JUNK ... 12 + 64496
+		// Read JUNK ... 12 + 64496
 		if err := avi.JUNKReader(&l); err != nil {
 			return nil, err
 		}
 
 	case fccstrl:
-		// strh 8 + 56
+		// Read strh 8 + 56
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
-		// strf 8 + 1064
+		// Read strf 8 + 1064
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
-		// indx 8 + 40
+		// Read indx 8 + 40
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
 
 	case fccodml:
-		// dmlr 8 + 4
+		// Read dmlr 8 + 4
 		if err := avi.ChunkReader(&l); err != nil {
 			return nil, err
 		}
@@ -286,8 +282,14 @@ func (avi *AVI) ListReader() (*List, error) {
 	return &l, nil
 }
 
+// MOVIReader reads frames.
+// input:
+// num is an argument that MOVIReader is going to read.
+//
+// TODO: there should be a max limit for the input
+// TODO: this func should return err. if necessary
 func (avi *AVI) MOVIReader(num int) {
-	var movi_list List
+	var l List
 
 	buf, err := avi.readData(12)
 	if err != nil {
@@ -299,43 +301,50 @@ func (avi *AVI) MOVIReader(num int) {
 		return
 	}
 
+	// Read size of MOVI List
+	l.Size = decodeU32(buf[4:8])
+
 	// Make sure that third 4 letters are "movi"
 	if !equal(FOURCC{buf[8], buf[9], buf[10], buf[11]}, fccmovi) {
 		return
 	}
-
-	movi_list.Type = fccmovi
-	movi_list.Size = decodeU32(buf[4:8])
+	l.Type = fccmovi
 
 	for i := 0; i < num; i++ {
-		avi.ImageChunkReader(&movi_list)
+		err := avi.ImageChunkReader(&l)
+		if err != nil {
+			return
+		}
 	}
 
-	avi.lists = append(avi.lists, &movi_list)
+	// Put MOVI list as a part of lists in AVI struct
+	avi.lists = append(avi.lists, &l)
 }
 
 func (avi *AVI) ImageChunkReader(l *List) error {
 
-	ick := ImageChunk{}
+	c := ImageChunk{}
 
+	// Increment imageNum. imageNum counts the number of frames that
+	// the function has read the file.
 	l.imageNum += 1
-	ick.ImageID = l.imageNum
+	c.ImageID = l.imageNum
 
 	buf, err := avi.readData(8)
 	if err != nil {
 		return err
 	}
 
-	ick.ID = FOURCC{buf[0], buf[1], buf[2], buf[3]}
+	c.ID = FOURCC{buf[0], buf[1], buf[2], buf[3]}
 
-	buf, err = avi.readData(decodeU32(buf[4:8]))
+	// buf[4:8] is size of the image frame.
+	// this code reads one frame of the avi data.
+	c.Image, err = avi.readData(decodeU32(buf[4:8]))
 	if err != nil {
 		return err
 	}
 
-	ick.Image = buf
-
-	l.imagechunks = append(l.imagechunks, &ick)
+	l.imagechunks = append(l.imagechunks, &c)
 
 	return nil
 }
